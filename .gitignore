@@ -1,0 +1,39 @@
+# Arquivos e pastas do Visual Studio / Qt Creator
+/.vs/
+*.VC.db
+*.VC.VC.opendb
+*.suo
+*.user
+*.pro.user
+*.sln.docstates
+
+# Pastas de Build (Compilação)
+/build/
+/debug/
+/release/
+/x64/
+/Win32/
+
+# Arquivos gerados pelo Qt
+/GeneratedFiles/
+/ui_*.h
+/moc_*.cpp
+/qrc_*.cpp
+*_plugin_import.cpp
+
+# Makefiles e outros arquivos de build
+Makefile*
+*.ninja
+*.spec
+
+# Binários e bibliotecas
+*.exe
+*.dll
+*.lib
+*.so
+*.a
+*.o
+
+# Arquivos de sistema operacional
+.DS_Store
+Thumbs.db
