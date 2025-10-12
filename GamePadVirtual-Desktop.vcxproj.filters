@@ -51,6 +51,9 @@
     <ClCompile Include="src\communication\tcp_server.cpp">
       <Filter>Generated Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\communication\udp_server.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="src\communication\connection_manager.h">
@@ -75,6 +78,9 @@
       <Filter>Generated Files</Filter>
     </QtMoc>
     <QtMoc Include="src\communication\tcp_server.h">
+      <Filter>Generated Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\communication\udp_server.h">
       <Filter>Generated Files</Filter>
     </QtMoc>
   </ItemGroup>

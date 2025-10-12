@@ -180,6 +180,7 @@
     <ClCompile Include="src\communication\bluetooth_server.cpp" />
     <ClCompile Include="src\communication\connection_manager.cpp" />
     <ClCompile Include="src\communication\tcp_server.cpp" />
+    <ClCompile Include="src\communication\udp_server.cpp" />
     <ClCompile Include="src\communication\usb_monitor.cpp" />
     <ClCompile Include="src\virtual_gamepad\gamepad_manager.cpp" />
     <ClCompile Include="src\main.cpp" />
@@ -192,6 +193,7 @@
     <QtMoc Include="src\communication\bluetooth_server.h" />
     <QtMoc Include="src\communication\usb_monitor.h" />
     <QtMoc Include="src\communication\tcp_server.h" />
+    <QtMoc Include="src\communication\udp_server.h" />
     <ClInclude Include="src\protocol\gamepad_packet.h" />
     <QtMoc Include="src\mainwindow.h" />
     <QtMoc Include="src\communication\wifi_server.h" />

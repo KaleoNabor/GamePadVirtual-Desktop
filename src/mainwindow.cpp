@@ -21,13 +21,13 @@ MainWindow::MainWindow(QWidget* parent)
 
     m_connectionManager = new ConnectionManager(m_gamepadManager, this);
 
+    // Conectar sinais do GamepadManager para a MainWindow
     connect(m_gamepadManager, &GamepadManager::gamepadStateUpdated, this, &MainWindow::onGamepadStateUpdate);
-    connect(m_gamepadManager, &GamepadManager::playerConnected, this, &MainWindow::onPlayerConnected);
-    connect(m_gamepadManager, &GamepadManager::playerDisconnected, this, &MainWindow::onPlayerDisconnected);
+    connect(m_gamepadManager, &GamepadManager::playerConnectedSignal, this, &MainWindow::onPlayerConnected);
+    connect(m_gamepadManager, &GamepadManager::playerDisconnectedSignal, this, &MainWindow::onPlayerDisconnected);
     connect(m_connectionManager, &ConnectionManager::logMessage, this, &MainWindow::onLogMessage);
 
     setupUI();
-
     m_connectionManager->startServices();
 }
 

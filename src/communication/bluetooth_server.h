@@ -17,6 +17,11 @@ public:
     explicit BluetoothServer(QObject* parent = nullptr);
     ~BluetoothServer();
 
+    // =========================================================================
+    // ADICIONE A DECLARAÇÃO DA NOVA FUNÇÃO AQUI
+    // =========================================================================
+    bool sendToPlayer(int playerIndex, const QByteArray& data);
+
 public slots:
     void startServer();
     void stopServer();

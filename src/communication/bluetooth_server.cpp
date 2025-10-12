@@ -129,3 +129,17 @@ int BluetoothServer::findEmptySlot() const
     }
     return -1;
 }
+
+bool BluetoothServer::sendToPlayer(int playerIndex, const QByteArray& data)
+{
+    // Percorre o mapa de sockets para encontrar o jogador correto
+    for (auto it = m_socketPlayerMap.constBegin(); it != m_socketPlayerMap.constEnd(); ++it) {
+        if (it.value() == playerIndex) {
+            // Se encontrou o jogador, escreve os dados no socket dele
+            it.key()->write(data);
+            return true; // Retorna sucesso
+        }
+    }
+    // Retorna falha se o jogador não foi encontrado entre os clientes Bluetooth
+    return false;
+}

@@ -4,8 +4,8 @@
 #include <QObject>
 #include <QThread>
 #include "wifi_server.h"      // Servidor de Descoberta (UDP)
-#include "tcp_server.h"       // Servidor de Dados (TCP)
-#include "bluetooth_server.h" // Servidor Bluetooth (ainda presente)
+#include "udp_server.h"       // <<< NOVO SERVIDOR DE DADOS (UDP)
+#include "bluetooth_server.h"
 #include "../virtual_gamepad/gamepad_manager.h"
 
 class ConnectionManager : public QObject
@@ -26,14 +26,14 @@ signals:
 private:
     GamepadManager* m_gamepadManager;
 
-    // Threads para cada servidor
-    QThread m_discoveryThread;  // Thread para o servidor de descoberta UDP
-    QThread m_tcpDataThread;    // Thread para o servidor de dados TCP
+    // Threads
+    QThread m_discoveryThread;
+    QThread m_udpDataThread;      // <<< RENOMEADO DE m_tcpDataThread
     QThread m_bluetoothThread;
 
-    // Ponteiros para os workers que rodam nas threads
-    WifiServer* m_discoveryServer; // Renomeado para clareza
-    TcpServer* m_tcpServer;
+    // Ponteiros para os workers
+    WifiServer* m_discoveryServer;
+    UdpServer* m_udpServer;          // <<< RENOMEADO DE m_tcpServer
     BluetoothServer* m_bluetoothServer;
 };
 
