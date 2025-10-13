@@ -3,9 +3,10 @@
 
 #include <QObject>
 #include <QThread>
-#include "wifi_server.h"      // Servidor de Descoberta (UDP)
-#include "udp_server.h"       // <<< NOVO SERVIDOR DE DADOS (UDP)
+#include "wifi_server.h"
+#include "udp_server.h"
 #include "bluetooth_server.h"
+#include "ble_server.h" 
 #include "../virtual_gamepad/gamepad_manager.h"
 
 class ConnectionManager : public QObject
@@ -28,13 +29,15 @@ private:
 
     // Threads
     QThread m_discoveryThread;
-    QThread m_udpDataThread;      // <<< RENOMEADO DE m_tcpDataThread
+    QThread m_udpDataThread;
     QThread m_bluetoothThread;
+    QThread m_bleThread; // <<< ADICIONA A NOVA THREAD PARA O BLE
 
     // Ponteiros para os workers
     WifiServer* m_discoveryServer;
-    UdpServer* m_udpServer;          // <<< RENOMEADO DE m_tcpServer
-    BluetoothServer* m_bluetoothServer;
+    UdpServer* m_udpServer;
+    BluetoothServer* m_bluetoothServer; // Manter o antigo por enquanto
+    BleServer* m_bleServer; // <<< ADICIONA O PONTEIRO PARA O NOVO SERVIDOR
 };
 
 #endif // CONNECTION_MANAGER_H

@@ -177,6 +177,7 @@
     </QtMoc>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\communication\ble_server.cpp" />
     <ClCompile Include="src\communication\bluetooth_server.cpp" />
     <ClCompile Include="src\communication\connection_manager.cpp" />
     <ClCompile Include="src\communication\tcp_server.cpp" />
@@ -194,6 +195,7 @@
     <QtMoc Include="src\communication\usb_monitor.h" />
     <QtMoc Include="src\communication\tcp_server.h" />
     <QtMoc Include="src\communication\udp_server.h" />
+    <QtMoc Include="src\communication\ble_server.h" />
     <ClInclude Include="src\protocol\gamepad_packet.h" />
     <QtMoc Include="src\mainwindow.h" />
     <QtMoc Include="src\communication\wifi_server.h" />

@@ -1,5 +1,6 @@
 ﻿#include "connection_manager.h"
 #include <QDebug>
+#include "../protocol/gamepad_packet.h" // Inclua o gamepad_packet.h
 
 ConnectionManager::ConnectionManager(GamepadManager* gamepadManager, QObject* parent)
     : QObject(parent), m_gamepadManager(gamepadManager)
@@ -17,28 +18,44 @@ ConnectionManager::ConnectionManager(GamepadManager* gamepadManager, QObject* pa
     connect(&m_udpDataThread, &QThread::started, m_udpServer, [=]() {
         m_udpServer->startServer(27015);
         });
-
-    // Conecta os sinais do servidor UDP ao GamepadManager
-    connect(m_udpServer, &UdpServer::packetReceived, m_gamepadManager, &GamepadManager::onPacketReceived, Qt::QueuedConnection);
-    connect(m_udpServer, &UdpServer::playerConnected, m_gamepadManager, &GamepadManager::playerConnected, Qt::QueuedConnection);
-    connect(m_udpServer, &UdpServer::playerDisconnected, m_gamepadManager, &GamepadManager::playerDisconnected, Qt::QueuedConnection);
+    connect(m_udpServer, &UdpServer::packetReceived, m_gamepadManager, &GamepadManager::onPacketReceived);
+    connect(m_udpServer, &UdpServer::playerConnected, m_gamepadManager, &GamepadManager::playerConnected);
+    connect(m_udpServer, &UdpServer::playerDisconnected, m_gamepadManager, &GamepadManager::playerDisconnected);
     connect(m_udpServer, &UdpServer::logMessage, this, &ConnectionManager::logMessage);
 
-    // --- Configuração do Servidor Bluetooth ---
+    // --- Configuração do Servidor Bluetooth Clássico ---
     m_bluetoothServer = new BluetoothServer();
     m_bluetoothServer->moveToThread(&m_bluetoothThread);
     connect(&m_bluetoothThread, &QThread::started, m_bluetoothServer, &BluetoothServer::startServer);
-    connect(m_bluetoothServer, &BluetoothServer::packetReceived, m_gamepadManager, &GamepadManager::onPacketReceived, Qt::QueuedConnection);
-    connect(m_bluetoothServer, &BluetoothServer::playerConnected, m_gamepadManager, &GamepadManager::playerConnected, Qt::QueuedConnection);
-    connect(m_bluetoothServer, &BluetoothServer::playerDisconnected, m_gamepadManager, &GamepadManager::playerDisconnected, Qt::QueuedConnection);
+    connect(m_bluetoothServer, &BluetoothServer::packetReceived, m_gamepadManager, &GamepadManager::onPacketReceived);
+    connect(m_bluetoothServer, &BluetoothServer::playerConnected, m_gamepadManager, &GamepadManager::playerConnected);
+    connect(m_bluetoothServer, &BluetoothServer::playerDisconnected, m_gamepadManager, &GamepadManager::playerDisconnected);
     connect(m_bluetoothServer, &BluetoothServer::logMessage, this, &ConnectionManager::logMessage);
 
-    // Conecta o sinal de vibração para ser enviado via UDP ou Bluetooth
+    // =========================================================================
+    // NOVA CONFIGURAÇÃO DO SERVIDOR BLUETOOTH LOW ENERGY (BLE)
+    // =========================================================================
+    m_bleServer = new BleServer();
+    m_bleServer->moveToThread(&m_bleThread);
+    connect(&m_bleThread, &QThread::started, m_bleServer, &BleServer::startServer);
+    // O sinal packetReceived do BleServer emite um QByteArray. Precisamos convertê-lo.
+    connect(m_bleServer, &BleServer::packetReceived, this, [this](int playerIndex, const QByteArray& packetData) {
+        if (packetData.size() >= static_cast<int>(sizeof(GamepadPacket))) {
+            const GamepadPacket* packet = reinterpret_cast<const GamepadPacket*>(packetData.constData());
+            m_gamepadManager->onPacketReceived(playerIndex, *packet);
+        }
+        });
+    connect(m_bleServer, &BleServer::playerConnected, m_gamepadManager, &GamepadManager::playerConnected);
+    connect(m_bleServer, &BleServer::playerDisconnected, m_gamepadManager, &GamepadManager::playerDisconnected);
+    connect(m_bleServer, &BleServer::logMessage, this, &ConnectionManager::logMessage);
+
+
+    // Conecta o sinal de vibração para ser enviado via TODOS os métodos
     connect(m_gamepadManager, &GamepadManager::vibrationCommandReady, this, [this](int playerIndex, const QByteArray& command) {
-        // Tenta enviar via UDP primeiro
         if (!m_udpServer->sendToPlayer(playerIndex, command)) {
-            // Se não for um jogador UDP, tenta enviar via Bluetooth
-            m_bluetoothServer->sendToPlayer(playerIndex, command);
+            if (!m_bleServer->sendVibration(playerIndex, command)) { // <<< TENTA ENVIAR VIA BLE
+                m_bluetoothServer->sendToPlayer(playerIndex, command);
+            }
         }
         });
 }
@@ -52,8 +69,9 @@ void ConnectionManager::startServices()
 {
     qDebug() << "Iniciando servicos de conexao...";
     if (!m_discoveryThread.isRunning()) m_discoveryThread.start();
-    if (!m_udpDataThread.isRunning()) m_udpDataThread.start(); // <<< USA UDP THREAD
+    if (!m_udpDataThread.isRunning()) m_udpDataThread.start();
     if (!m_bluetoothThread.isRunning()) m_bluetoothThread.start();
+    if (!m_bleThread.isRunning()) m_bleThread.start(); // <<< INICIA A THREAD DO BLE
 }
 
 void ConnectionManager::stopServices()
@@ -63,14 +81,20 @@ void ConnectionManager::stopServices()
         m_discoveryThread.quit();
         m_discoveryThread.wait(1000);
     }
-    if (m_udpDataThread.isRunning()) { // <<< USA UDP THREAD
-        QMetaObject::invokeMethod(m_udpServer, "stopServer", Qt::BlockingQueuedConnection); // <<< USA UDP SERVER
-        m_udpDataThread.quit(); // <<< USA UDP THREAD
-        m_udpDataThread.wait(1000); // <<< USA UDP THREAD
+    if (m_udpDataThread.isRunning()) {
+        QMetaObject::invokeMethod(m_udpServer, "stopServer", Qt::BlockingQueuedConnection);
+        m_udpDataThread.quit();
+        m_udpDataThread.wait(1000);
     }
     if (m_bluetoothThread.isRunning()) {
         QMetaObject::invokeMethod(m_bluetoothServer, "stopServer", Qt::BlockingQueuedConnection);
         m_bluetoothThread.quit();
         m_bluetoothThread.wait(1000);
+    }
+    // <<< PARA A THREAD DO BLE DE FORMA SEGURA >>>
+    if (m_bleThread.isRunning()) {
+        QMetaObject::invokeMethod(m_bleServer, "stopServer", Qt::BlockingQueuedConnection);
+        m_bleThread.quit();
+        m_bleThread.wait(1000);
     }
 }
