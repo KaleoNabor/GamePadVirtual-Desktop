@@ -5,8 +5,8 @@
 #include <QThread>
 #include "wifi_server.h"
 #include "udp_server.h"
-#include "bluetooth_server.h"
-#include "ble_server.h" 
+#include "bluetooth_server.h" // <<< Servidor Clássico
+#include "ble_server.h"       // <<< Servidor BLE
 #include "../virtual_gamepad/gamepad_manager.h"
 
 class ConnectionManager : public QObject
@@ -27,17 +27,20 @@ signals:
 private:
     GamepadManager* m_gamepadManager;
 
-    // Threads
+    // Threads para cada serviço
     QThread m_discoveryThread;
     QThread m_udpDataThread;
     QThread m_bluetoothThread;
-    QThread m_bleThread; // <<< ADICIONA A NOVA THREAD PARA O BLE
+    QThread m_bleThread;
 
-    // Ponteiros para os workers
+    // Ponteiros para todos os servidores possíveis
     WifiServer* m_discoveryServer;
     UdpServer* m_udpServer;
-    BluetoothServer* m_bluetoothServer; // Manter o antigo por enquanto
-    BleServer* m_bleServer; // <<< ADICIONA O PONTEIRO PARA O NOVO SERVIDOR
+    BluetoothServer* m_bluetoothServer;
+    BleServer* m_bleServer;
+
+    // <<< NOVA VARIÁVEL para sabermos qual modo usar >>>
+    bool m_isBleSupported;
 };
 
 #endif // CONNECTION_MANAGER_H

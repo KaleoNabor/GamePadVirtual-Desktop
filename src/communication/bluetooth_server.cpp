@@ -1,6 +1,7 @@
 ﻿#include "bluetooth_server.h"
 #include <QBluetoothUuid>
 #include <QDebug>
+#include <QBluetoothLocalDevice> // <<< ADICIONE ESTE INCLUDE
 
 static const QBluetoothUuid ServiceUuid(QStringLiteral("00001101-0000-1000-8000-00805F9B34FB"));
 
@@ -22,36 +23,61 @@ void BluetoothServer::startServer()
         return;
     }
 
-    // Vers�o corrigida
+    // <<< DIAGNÓSTICO 1: O Bluetooth do PC está ligado? >>>
+    QBluetoothLocalDevice localDevice;
+    if (!localDevice.isValid() || localDevice.hostMode() == QBluetoothLocalDevice::HostPoweredOff) {
+        qCritical() << "ERRO DE DIAGNÓSTICO: Adaptador Bluetooth não encontrado ou está desligado.";
+        emit logMessage("Erro: O Bluetooth do PC está desligado ou indisponível.");
+        return;
+    }
+    qDebug() << "Diagnóstico: Adaptador Bluetooth encontrado e ligado.";
+
+
     m_btServer = new QBluetoothServer(QBluetoothServiceInfo::RfcommProtocol, this);
     connect(m_btServer, &QBluetoothServer::newConnection, this, &BluetoothServer::clientConnected);
 
-    // --- CORRE��O DEFINITIVA PARA QT 6 ---
-    const QBluetoothAddress address;
+    // <<< DIAGNÓSTICO 2: Ocorre algum erro durante a operação? >>>
+    connect(m_btServer, &QBluetoothServer::errorOccurred, this, [](QBluetoothServer::Error error) {
+        qCritical() << "ERRO DE SERVIDOR BLUETOOTH:" << error;
+        });
+
+
+    const QBluetoothAddress address; // Ouve em qualquer endereço local
     if (!m_btServer->listen(address)) {
-        qDebug() << "Erro: Nao foi possivel iniciar o servidor Bluetooth.";
-        emit logMessage("Erro: Nao foi possivel iniciar o servidor Bluetooth. Verifique se o BT est� ligado.");
+        qCritical() << "ERRO CRÍTICO: m_btServer->listen() falhou.";
+        emit logMessage("Erro: Falha ao iniciar a escuta do servidor Bluetooth.");
+        delete m_btServer;
+        m_btServer = nullptr;
         return;
     }
+
+    // <<< DIAGNÓSTICO 3: O servidor está realmente ouvindo? >>>
+    if (m_btServer->isListening()) {
+        qDebug() << "Diagnóstico: Servidor BT está ouvindo na porta:" << m_btServer->serverPort();
+    }
+
 
     QBluetoothServiceInfo serviceInfo;
     serviceInfo.setServiceUuid(ServiceUuid);
     serviceInfo.setAttribute(QBluetoothServiceInfo::ServiceName, "GamePadVirtual Server");
     serviceInfo.setAttribute(QBluetoothServiceInfo::ServiceDescription, "Servidor para o GamePadVirtual App");
-    serviceInfo.registerService(address);
-    // --- FIM DA CORRE��O ---
 
-    qDebug() << "Servidor Bluetooth iniciado e aguardando conexoes...";
-    emit logMessage("Servidor Bluetooth aguardando conex�es...");
+    // <<< DIAGNÓSTICO 4: O registro do serviço teve sucesso? >>>
+    if (serviceInfo.registerService(address)) {
+        qDebug() << "Diagnóstico: Serviço 'GamePadVirtual Server' registrado com sucesso.";
+    }
+    else {
+        qCritical() << "ERRO CRÍTICO: Falha ao registrar o serviço Bluetooth.";
+    }
+
+    emit logMessage("Servidor Bluetooth aguardando conexões...");
 }
 
-// O resto do arquivo bluetooth_server.cpp continua igual...
-// (As fun��es stopServer, clientConnected, readSocket, etc. n�o precisam de altera��o)
 void BluetoothServer::stopServer()
 {
     if (m_btServer) {
-        // A API de registro de servi�o n�o tem um m�todo unregister expl�cito documentado,
-        // a destrui��o do servidor deve cuidar disso.
+        // A API de registro de serviço não tem um método unregister explícito documentado,
+        // a destruição do servidor deve cuidar disso.
         m_btServer->close();
         qDeleteAll(m_clientSockets);
         m_clientSockets.clear();
