@@ -1,4 +1,4 @@
-#include "ble_server.h"
+ï»¿#include "ble_server.h"
 
 #include <QtBluetooth/QLowEnergyAdvertisingData>
 #include <QtBluetooth/QLowEnergyAdvertisingParameters> 
@@ -44,7 +44,7 @@ void BleServer::startServer()
 
     m_bleController->startAdvertising(QLowEnergyAdvertisingParameters(), advertisingData, advertisingData);
     qDebug() << "Servidor BLE iniciado e anunciando...";
-    emit logMessage("Servidor Bluetooth LE aguardando conexões...");
+    emit logMessage("Servidor Bluetooth LE aguardando conexÃµes...");
 }
 
 void BleServer::stopServer()
@@ -67,18 +67,18 @@ void BleServer::setupService()
     serviceData.setType(QLowEnergyServiceData::ServiceTypePrimary);
     serviceData.setUuid(SERVICE_UUID);
 
-    // Característica de Input (onde o celular escreve)
+    // CaracterÃ­stica de Input (onde o celular escreve)
     QLowEnergyCharacteristicData inputCharData;
     inputCharData.setUuid(INPUT_CHAR_UUID);
     inputCharData.setProperties(QLowEnergyCharacteristic::Write);
     inputCharData.setValue(QByteArray(2, 0));
 
-    // Característica de Vibração (onde o PC escreve e o celular é notificado)
+    // CaracterÃ­stica de VibraÃ§Ã£o (onde o PC escreve e o celular Ã© notificado)
     QLowEnergyCharacteristicData vibrationCharData;
     vibrationCharData.setUuid(VIBRATION_CHAR_UUID);
     vibrationCharData.setProperties(QLowEnergyCharacteristic::Write | QLowEnergyCharacteristic::Notify);
 
-    // Descritor de configuração do cliente para notificações
+    // Descritor de configuraÃ§Ã£o do cliente para notificaÃ§Ãµes
     QLowEnergyDescriptorData clientConfig;
     clientConfig.setUuid(QBluetoothUuid::DescriptorType::ClientCharacteristicConfiguration);
     clientConfig.setValue(QByteArray(2, 0));
@@ -90,11 +90,11 @@ void BleServer::setupService()
     m_gamepadService = m_bleController->addService(serviceData);
 
     if (!m_gamepadService) {
-        qDebug() << "Falha ao criar serviço BLE";
+        qDebug() << "Falha ao criar serviÃ§o BLE";
         return;
     }
 
-    // Encontrar a característica de vibração
+    // Encontrar a caracterÃ­stica de vibraÃ§Ã£o
     auto characteristics = m_gamepadService->characteristics();
     for (const auto& characteristic : characteristics) {
         if (characteristic.uuid() == VIBRATION_CHAR_UUID) {
@@ -120,7 +120,7 @@ void BleServer::onCharacteristicWritten(const QLowEnergyCharacteristic& characte
                 emit playerConnected(playerIndex, "Bluetooth LE");
             }
             else {
-                qDebug() << "Nenhum slot disponível para cliente BLE";
+                qDebug() << "Nenhum slot disponÃ­vel para cliente BLE";
                 return;
             }
         }
@@ -134,8 +134,8 @@ void BleServer::onClientConnected()
 {
     qDebug() << "Cliente BLE conectado:" << m_bleController->remoteName();
 
-    // O mapeamento real acontece na primeira escrita da característica
-    // para evitar ocupar slots com clientes que não enviam dados
+    // O mapeamento real acontece na primeira escrita da caracterÃ­stica
+    // para evitar ocupar slots com clientes que nÃ£o enviam dados
 }
 
 void BleServer::onClientDisconnected()
@@ -156,7 +156,7 @@ bool BleServer::sendVibration(int playerIndex, const QByteArray& command)
         return false;
     }
 
-    // Encontra o endereço do cliente para o playerIndex
+    // Encontra o endereÃ§o do cliente para o playerIndex
     QBluetoothAddress targetAddress;
     bool found = false;
     for (auto it = m_clientPlayerMap.constBegin(); it != m_clientPlayerMap.constEnd(); ++it) {
@@ -167,7 +167,7 @@ bool BleServer::sendVibration(int playerIndex, const QByteArray& command)
         }
     }
 
-    // Se o cliente conectado for o alvo, envia a notificação
+    // Se o cliente conectado for o alvo, envia a notificaÃ§Ã£o
     if (found && m_bleController && m_bleController->remoteAddress() == targetAddress) {
         m_gamepadService->writeCharacteristic(m_vibrationCharacteristic, command, QLowEnergyService::WriteWithoutResponse);
         return true;

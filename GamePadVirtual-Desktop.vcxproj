@@ -41,7 +41,7 @@
   <Import Project="$(QtMsBuild)\qt_defaults.props" Condition="Exists('$(QtMsBuild)\qt_defaults.props')" />
   <PropertyGroup Label="QtSettings" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <QtInstall>6.9.3_msvc2022_64</QtInstall>
-    <QtModules>core;gui;network;widgets</QtModules>
+    <QtModules>core;gui;network;widgets;bluetooth</QtModules>
   </PropertyGroup>
   <PropertyGroup Label="QtSettings" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <QtInstall>6.9.3_msvc2022_64</QtInstall>
@@ -87,7 +87,7 @@
       <PreprocessToFile>false</PreprocessToFile>
       <ProgramDataBaseFileName>
       </ProgramDataBaseFileName>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <UseFullPaths>false</UseFullPaths>
@@ -95,8 +95,8 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>.\ViGEmClient-master\lib\debug\x64\ViGEmClient.lib;$(QTDIR)\lib\Qt6EntryPoint.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>.\ViGEmClient-master\lib\debug\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>setupapi.lib;.\ViGEmClient-master\lib\release\x64\ViGEmClient.lib;$(QTDIR)\lib\Qt6EntryPoint.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>.\ViGEmClient-master\lib"C:\Projetos\GamePadVirtual-Desktop\ViGEmClient-master\lib\release\x64";%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -128,8 +128,8 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Qt\6.9.3\msvc2022_64\include\QtSerialPort;C:\Qt\6.9.3\msvc2022_64\include\QtBluetooth;GeneratedFiles\$(ConfigurationName);GeneratedFiles;.;C:\Projetos\GamePadVirtual-Desktop\ViGEmClient-master\include;debug;/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>-Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -permissive- -Zc:__cplusplus -Zc:externConstexpr -utf-8 -w34100 -w34189 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>release;C:\Qt\6.9.3\msvc2022_64\include\QtSerialPort;C:\Qt\6.9.3\msvc2022_64\include\QtBluetooth;GeneratedFiles\$(ConfigurationName);GeneratedFiles;.;C:\Projetos\GamePadVirtual-Desktop\ViGEmClient-master\include;debug;/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>-Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -permissive- -Zc:__cplusplus -Zc:externConstexpr -utf-8 -w34100 -w34189 -w44456 -w44457 -w44458 /D_ITERATOR_DEBUG_LEVEL=0 %(AdditionalOptions)</AdditionalOptions>
       <AssemblerListingLocation>debug\</AssemblerListingLocation>
       <BrowseInformation>false</BrowseInformation>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -138,9 +138,9 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <ObjectFileName>debug\</ObjectFileName>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;WIN64;QT_DEPRECATED_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_WINDOWS;_UNICODE;_ENABLE_EXTENDED_ALIGNED_STORAGE;WIN64;QT_DEPRECATED_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <UseFullPaths>false</UseFullPaths>
@@ -149,7 +149,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>Qt6SerialPortd.lib;Qt6Bluetoothd.lib;SetupAPI.lib;ViGEmClient.lib;$(QTDIR)\lib\Qt6EntryPointd.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Qt\6.9.3\msvc2022_64\lib;C:\Projetos\GamePadVirtual-Desktop\ViGEmClient-master\lib\debug\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Qt\6.9.3\msvc2022_64\lib;C:\Projetos\GamePadVirtual-Desktop\ViGEmClient-master\lib\release\x64;C:\Projetos\GamePadVirtual-Desktop\ViGEmClient-master\lib\debug\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -180,9 +180,8 @@
     <ClCompile Include="src\communication\ble_server.cpp" />
     <ClCompile Include="src\communication\bluetooth_server.cpp" />
     <ClCompile Include="src\communication\connection_manager.cpp" />
-    <ClCompile Include="src\communication\tcp_server.cpp" />
     <ClCompile Include="src\communication\udp_server.cpp" />
-    <ClCompile Include="src\communication\usb_monitor.cpp" />
+    <ClCompile Include="src\gamepaddisplaywidget.cpp" />
     <ClCompile Include="src\virtual_gamepad\gamepad_manager.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\mainwindow.cpp" />
@@ -192,10 +191,10 @@
     <QtMoc Include="src\communication\connection_manager.h" />
     <QtMoc Include="src\virtual_gamepad\gamepad_manager.h" />
     <QtMoc Include="src\communication\bluetooth_server.h" />
-    <QtMoc Include="src\communication\usb_monitor.h" />
-    <QtMoc Include="src\communication\tcp_server.h" />
     <QtMoc Include="src\communication\udp_server.h" />
     <QtMoc Include="src\communication\ble_server.h" />
+    <QtMoc Include="src\gamepaddisplaywidget.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="src\protocol\gamepad_packet.h" />
     <QtMoc Include="src\mainwindow.h" />
     <QtMoc Include="src\communication\wifi_server.h" />
@@ -215,6 +214,9 @@
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Generate moc_predefs.h</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)\moc_predefs.h;%(Outputs)</Outputs>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="app_resources.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Import Project="$(QtMsBuild)\qt.targets" Condition="Exists('$(QtMsBuild)\qt.targets')" />

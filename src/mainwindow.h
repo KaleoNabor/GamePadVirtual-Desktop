@@ -3,19 +3,13 @@
 
 #include <QMainWindow>
 #include <QLabel>
-#include <QGroupBox>
-#include <QProgressBar>
-#include <QMap>
-#include <QStatusBar>
-
+#include <QTabWidget>
 #include "communication/connection_manager.h"
 #include "virtual_gamepad/gamepad_manager.h"
-#include "protocol/gamepad_packet.h" // Incluído para o tipo do slot
+#include "protocol/gamepad_packet.h"
+#include "gamepaddisplaywidget.h"
 
-#include <Windows.h>
-#include "ViGEm/Client.h"
-
-using ButtonLabelMap = QMap<int, QLabel*>;
+#define MAX_PLAYERS 4
 
 class MainWindow : public QMainWindow
 {
@@ -29,7 +23,6 @@ protected:
     void closeEvent(QCloseEvent* event) override;
 
 private slots:
-    // ATUALIZADO: O tipo do pacote mudou para GamepadPacket
     void onGamepadStateUpdate(int playerIndex, const GamepadPacket& packet);
     void onPlayerConnected(int playerIndex, const QString& type);
     void onPlayerDisconnected(int playerIndex);
@@ -41,27 +34,19 @@ private:
     QWidget* createTestTab();
     void updateConnectionStatus();
 
-    GamepadManager* m_gamepadManager;
-    ConnectionManager* m_connectionManager;
+    // --- Membros privados ---
+    GamepadManager* m_gamepadManager;          // Gerenciador de gamepads virtuais
+    ConnectionManager* m_connectionManager;    // Gerenciador de conexões
 
-    QLabel* m_networkStatusLabel;
-    QLabel* m_btStatusLabel;
+    QLabel* m_networkStatusLabel;              // Status das conexões de rede
+    QLabel* m_btStatusLabel;                   // Status das conexões Bluetooth
 
-    QGroupBox* m_playerGroupBoxes[MAX_PLAYERS];
-    ButtonLabelMap m_buttonLabels[MAX_PLAYERS];
-    QProgressBar* m_leftTriggerBars[MAX_PLAYERS];
-    QProgressBar* m_rightTriggerBars[MAX_PLAYERS];
-    QLabel* m_leftStickLabels[MAX_PLAYERS];
-    QLabel* m_rightStickLabels[MAX_PLAYERS];
+    QTabWidget* m_playerTabs;                  // Abas dos jogadores
+    GamepadDisplayWidget* m_gamepadDisplays[MAX_PLAYERS];  // Displays visuais dos gamepads
+    QLabel* m_gyroLabels[MAX_PLAYERS];         // Labels do giroscópio
+    QLabel* m_accelLabels[MAX_PLAYERS];        // Labels do acelerômetro
 
-    // ADICIONADO: Labels para os dados dos sensores
-    QLabel* m_gyroLabels[MAX_PLAYERS];
-    QLabel* m_accelLabels[MAX_PLAYERS];
-
-    QString m_playerConnectionTypes[MAX_PLAYERS];
-
-    const QString m_styleButtonPressed = "background-color: #4CAF50; color: white; border-radius: 5px; font-weight: bold;";
-    const QString m_styleButtonReleased = "background-color: #424242; color: white; border-radius: 5px;";
+    QString m_playerConnectionTypes[MAX_PLAYERS];  // Tipos de conexão dos jogadores
 };
 
 #endif // MAINWINDOW_H

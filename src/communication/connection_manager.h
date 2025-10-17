@@ -5,8 +5,8 @@
 #include <QThread>
 #include "wifi_server.h"
 #include "udp_server.h"
-#include "bluetooth_server.h" // <<< Servidor Clássico
-#include "ble_server.h"       // <<< Servidor BLE
+#include "bluetooth_server.h"
+#include "ble_server.h"
 #include "../virtual_gamepad/gamepad_manager.h"
 
 class ConnectionManager : public QObject
@@ -39,7 +39,6 @@ private:
     BluetoothServer* m_bluetoothServer;
     BleServer* m_bleServer;
 
-    // <<< NOVA VARIÁVEL para sabermos qual modo usar >>>
     bool m_isBleSupported;
 };
 

@@ -45,16 +45,13 @@
     <ClCompile Include="src\communication\bluetooth_server.cpp">
       <Filter>Generated Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\communication\usb_monitor.cpp">
-      <Filter>Generated Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\communication\tcp_server.cpp">
-      <Filter>Generated Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\communication\udp_server.cpp">
       <Filter>Generated Files</Filter>
     </ClCompile>
     <ClCompile Include="src\communication\ble_server.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gamepaddisplaywidget.cpp">
       <Filter>Generated Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -77,16 +74,13 @@
     <QtMoc Include="src\communication\bluetooth_server.h">
       <Filter>Generated Files</Filter>
     </QtMoc>
-    <QtMoc Include="src\communication\usb_monitor.h">
-      <Filter>Generated Files</Filter>
-    </QtMoc>
-    <QtMoc Include="src\communication\tcp_server.h">
-      <Filter>Generated Files</Filter>
-    </QtMoc>
     <QtMoc Include="src\communication\udp_server.h">
       <Filter>Generated Files</Filter>
     </QtMoc>
     <QtMoc Include="src\communication\ble_server.h">
+      <Filter>Generated Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\gamepaddisplaywidget.h">
       <Filter>Generated Files</Filter>
     </QtMoc>
   </ItemGroup>
@@ -97,5 +91,13 @@
     <CustomBuild Include="release\moc_predefs.h.cbt">
       <Filter>Generated Files</Filter>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="resource.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="app_resources.rc" />
   </ItemGroup>
 </Project>
