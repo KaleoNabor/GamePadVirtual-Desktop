@@ -34,19 +34,21 @@ private:
     QWidget* createTestTab();
     void updateConnectionStatus();
 
-    // --- Membros privados ---
-    GamepadManager* m_gamepadManager;          // Gerenciador de gamepads virtuais
-    ConnectionManager* m_connectionManager;    // Gerenciador de conexões
+    // Gerenciador de gamepads virtuais
+    GamepadManager* m_gamepadManager;
+    // Gerenciador de conexões
+    ConnectionManager* m_connectionManager;
 
-    QLabel* m_networkStatusLabel;              // Status das conexões de rede
-    QLabel* m_btStatusLabel;                   // Status das conexões Bluetooth
+    // Elementos da interface
+    QLabel* m_networkStatusLabel;
+    QLabel* m_btStatusLabel;
+    QTabWidget* m_playerTabs;
+    GamepadDisplayWidget* m_gamepadDisplays[MAX_PLAYERS];
+    QLabel* m_gyroLabels[MAX_PLAYERS];
+    QLabel* m_accelLabels[MAX_PLAYERS];
 
-    QTabWidget* m_playerTabs;                  // Abas dos jogadores
-    GamepadDisplayWidget* m_gamepadDisplays[MAX_PLAYERS];  // Displays visuais dos gamepads
-    QLabel* m_gyroLabels[MAX_PLAYERS];         // Labels do giroscópio
-    QLabel* m_accelLabels[MAX_PLAYERS];        // Labels do acelerômetro
-
-    QString m_playerConnectionTypes[MAX_PLAYERS];  // Tipos de conexão dos jogadores
+    // Armazenamento dos tipos de conexão
+    QString m_playerConnectionTypes[MAX_PLAYERS];
 };
 
-#endif // MAINWINDOW_H
+#endif

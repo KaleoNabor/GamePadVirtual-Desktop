@@ -1,12 +1,14 @@
 ﻿#include "bluetooth_server.h"
 #include <QBluetoothUuid>
 #include <QDebug>
-#include <QBluetoothLocalDevice> // <<< ADICIONE ESTE INCLUDE
+#include <QBluetoothLocalDevice>
 
+// UUID do serviço Bluetooth clássico
 static const QBluetoothUuid ServiceUuid(QStringLiteral("00001101-0000-1000-8000-00805F9B34FB"));
 
 BluetoothServer::BluetoothServer(QObject* parent) : QObject(parent), m_btServer(nullptr)
 {
+    // Inicialização dos slots de jogador como livres
     for (int i = 0; i < MAX_PLAYERS; ++i) {
         m_playerSlots[i] = false;
     }
@@ -19,11 +21,12 @@ BluetoothServer::~BluetoothServer()
 
 void BluetoothServer::startServer()
 {
+    // Verificação se servidor já está ativo
     if (m_btServer) {
         return;
     }
 
-    // <<< DIAGNÓSTICO 1: O Bluetooth do PC está ligado? >>>
+    // Verificação da disponibilidade do adaptador Bluetooth
     QBluetoothLocalDevice localDevice;
     if (!localDevice.isValid() || localDevice.hostMode() == QBluetoothLocalDevice::HostPoweredOff) {
         qCritical() << "ERRO DE DIAGNÓSTICO: Adaptador Bluetooth não encontrado ou está desligado.";
@@ -32,17 +35,17 @@ void BluetoothServer::startServer()
     }
     qDebug() << "Diagnóstico: Adaptador Bluetooth encontrado e ligado.";
 
-
+    // Criação do servidor Bluetooth RFCOMM
     m_btServer = new QBluetoothServer(QBluetoothServiceInfo::RfcommProtocol, this);
     connect(m_btServer, &QBluetoothServer::newConnection, this, &BluetoothServer::clientConnected);
 
-    // <<< DIAGNÓSTICO 2: Ocorre algum erro durante a operação? >>>
+    // Conexão do sinal de erro do servidor
     connect(m_btServer, &QBluetoothServer::errorOccurred, this, [](QBluetoothServer::Error error) {
         qCritical() << "ERRO DE SERVIDOR BLUETOOTH:" << error;
         });
 
-
-    const QBluetoothAddress address; // Ouve em qualquer endereço local
+    // Início da escuta em qualquer endereço local
+    const QBluetoothAddress address;
     if (!m_btServer->listen(address)) {
         qCritical() << "ERRO CRÍTICO: m_btServer->listen() falhou.";
         emit logMessage("Erro: Falha ao iniciar a escuta do servidor Bluetooth.");
@@ -51,18 +54,17 @@ void BluetoothServer::startServer()
         return;
     }
 
-    // <<< DIAGNÓSTICO 3: O servidor está realmente ouvindo? >>>
+    // Verificação se servidor está ouvindo
     if (m_btServer->isListening()) {
         qDebug() << "Diagnóstico: Servidor BT está ouvindo na porta:" << m_btServer->serverPort();
     }
 
-
+    // Registro do serviço Bluetooth
     QBluetoothServiceInfo serviceInfo;
     serviceInfo.setServiceUuid(ServiceUuid);
     serviceInfo.setAttribute(QBluetoothServiceInfo::ServiceName, "GamePadVirtual Server");
     serviceInfo.setAttribute(QBluetoothServiceInfo::ServiceDescription, "Servidor para o GamePadVirtual App");
 
-    // <<< DIAGNÓSTICO 4: O registro do serviço teve sucesso? >>>
     if (serviceInfo.registerService(address)) {
         qDebug() << "Diagnóstico: Serviço 'GamePadVirtual Server' registrado com sucesso.";
     }
@@ -75,9 +77,8 @@ void BluetoothServer::startServer()
 
 void BluetoothServer::stopServer()
 {
+    // Parada e limpeza do servidor Bluetooth
     if (m_btServer) {
-        // A API de registro de serviço não tem um método unregister explícito documentado,
-        // a destruição do servidor deve cuidar disso.
         m_btServer->close();
         qDeleteAll(m_clientSockets);
         m_clientSockets.clear();
@@ -90,11 +91,13 @@ void BluetoothServer::stopServer()
 
 void BluetoothServer::clientConnected()
 {
+    // Aceitação de nova conexão de cliente
     QBluetoothSocket* socket = m_btServer->nextPendingConnection();
     if (!socket) {
         return;
     }
 
+    // Busca de slot vazio para o jogador
     int playerIndex = findEmptySlot();
     if (playerIndex == -1) {
         qDebug() << "Maximo de jogadores conectados via Bluetooth. Rejeitando conexao.";
@@ -103,9 +106,11 @@ void BluetoothServer::clientConnected()
         return;
     }
 
+    // Conexão dos sinais do socket
     connect(socket, &QBluetoothSocket::readyRead, this, &BluetoothServer::readSocket);
     connect(socket, &QBluetoothSocket::disconnected, this, &BluetoothServer::clientDisconnected);
 
+    // Adição do socket às listas de controle
     m_clientSockets.append(socket);
     m_playerSlots[playerIndex] = true;
     m_socketPlayerMap[socket] = playerIndex;
@@ -116,11 +121,13 @@ void BluetoothServer::clientConnected()
 
 void BluetoothServer::readSocket()
 {
+    // Leitura de dados do socket
     QBluetoothSocket* socket = qobject_cast<QBluetoothSocket*>(sender());
     if (!socket || !m_socketPlayerMap.contains(socket)) return;
 
     int playerIndex = m_socketPlayerMap[socket];
 
+    // Processamento de pacotes completos do gamepad
     while (socket->bytesAvailable() >= static_cast<qint64>(sizeof(GamepadPacket)))
     {
         QByteArray data = socket->read(sizeof(GamepadPacket));
@@ -131,6 +138,7 @@ void BluetoothServer::readSocket()
 
 void BluetoothServer::clientDisconnected()
 {
+    // Processamento de desconexão de cliente
     QBluetoothSocket* socket = qobject_cast<QBluetoothSocket*>(sender());
     if (!socket) return;
 
@@ -148,6 +156,7 @@ void BluetoothServer::clientDisconnected()
 
 int BluetoothServer::findEmptySlot() const
 {
+    // Busca por slot de jogador disponível
     for (int i = 0; i < MAX_PLAYERS; ++i) {
         if (!m_playerSlots[i]) {
             return i;
@@ -158,14 +167,12 @@ int BluetoothServer::findEmptySlot() const
 
 bool BluetoothServer::sendToPlayer(int playerIndex, const QByteArray& data)
 {
-    // Percorre o mapa de sockets para encontrar o jogador correto
+    // Envio de dados para jogador específico via Bluetooth
     for (auto it = m_socketPlayerMap.constBegin(); it != m_socketPlayerMap.constEnd(); ++it) {
         if (it.value() == playerIndex) {
-            // Se encontrou o jogador, escreve os dados no socket dele
             it.key()->write(data);
-            return true; // Retorna sucesso
+            return true;
         }
     }
-    // Retorna falha se o jogador não foi encontrado entre os clientes Bluetooth
     return false;
 }

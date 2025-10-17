@@ -3,29 +3,30 @@
 
 #include <cstdint>
 
+// Empacotamento para garantir estrutura compacta
 #pragma pack(push, 1)
 
-// ATUALIZADO: O tamanho total é agora 20 bytes
+// Estrutura do pacote de dados do gamepad (20 bytes total)
 struct GamepadPacket {
-    // 2 bytes para os botões
+    // 2 bytes para estado dos botões
     uint16_t buttons;
 
-    // 4 bytes para os eixos dos analógicos (-128 a 127)
+    // 4 bytes para eixos dos analógicos (valores de -128 a 127)
     int8_t leftStickX;
     int8_t leftStickY;
     int8_t rightStickX;
     int8_t rightStickY;
 
-    // 2 bytes para os gatilhos (0 a 255)
+    // 2 bytes para valores dos gatilhos (0 a 255)
     uint8_t leftTrigger;
     uint8_t rightTrigger;
 
-    // 6 bytes para o giroscópio
+    // 6 bytes para dados do giroscópio
     int16_t gyroX;
     int16_t gyroY;
     int16_t gyroZ;
 
-    // ADICIONADO: 6 bytes para o acelerómetro
+    // 6 bytes para dados do acelerômetro
     int16_t accelX;
     int16_t accelY;
     int16_t accelZ;
@@ -33,7 +34,7 @@ struct GamepadPacket {
 
 #pragma pack(pop)
 
-// O enum GamepadButton permanece o mesmo
+// Enumeração dos botões do gamepad com máscaras de bit
 enum GamepadButton {
     DPAD_UP = 1 << 0,
     DPAD_DOWN = 1 << 1,
@@ -51,4 +52,4 @@ enum GamepadButton {
     Y = 1 << 15
 };
 
-#endif // GAMEPAD_PACKET_H
+#endif
