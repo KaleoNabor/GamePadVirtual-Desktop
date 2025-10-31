@@ -9,7 +9,8 @@
 #include "protocol/gamepad_packet.h"
 #include "gamepaddisplaywidget.h"
 
-#define MAX_PLAYERS 4
+// Definição da capacidade máxima de jogadores suportados
+#define MAX_PLAYERS 8
 
 class MainWindow : public QMainWindow
 {
@@ -51,6 +52,8 @@ private:
 
     // Armazenamento dos tipos de conexão
     QString m_playerConnectionTypes[MAX_PLAYERS];
+    // Flag para controle de exibição do aviso de limite estendido
+    bool m_warningShown = false;
 };
 
 #endif

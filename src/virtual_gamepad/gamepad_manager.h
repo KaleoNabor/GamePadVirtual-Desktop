@@ -16,7 +16,7 @@
 using VigemClient = PVIGEM_CLIENT;
 using VigemTarget = PVIGEM_TARGET;
 
-#define MAX_PLAYERS 4
+#define MAX_PLAYERS 8
 
 class GamepadManager : public QObject
 {

@@ -8,6 +8,7 @@
 #include <QtBluetooth/QBluetoothAddress>
 #include <QTimer>
 
+// Classe principal do servidor BLE (Bluetooth Low Energy) para gerenciar conexões de jogadores
 class BleServer : public QObject
 {
     Q_OBJECT
@@ -16,43 +17,59 @@ public:
     explicit BleServer(QObject* parent = nullptr);
     ~BleServer();
 
+    // --- SEÇÃO: MÉTODOS PÚBLICOS ---
+
     // Envio de comando de vibração para jogador
     bool sendVibration(int playerIndex, const QByteArray& command);
 
 public slots:
+    // --- SEÇÃO: SLOTS PÚBLICOS ---
+
     // Início e parada do servidor BLE
     void startServer();
     void stopServer();
 
+    // --- MODIFICAÇÃO ADICIONADA (REQ 2 FIX) ---
+    // Força a desconexão de um jogador específico via BLE
+    void forceDisconnectPlayer(int playerIndex);
+
 private slots:
+    // --- SEÇÃO: SLOTS PRIVADOS ---
+
     // Slots para eventos de conexão BLE
-    void onClientConnected();
-    void onClientDisconnected();
-    void onCharacteristicWritten(const QLowEnergyCharacteristic& characteristic, const QByteArray& newValue);
+    void onClientConnected();      // Gerencia novas conexões de clientes
+    void onClientDisconnected();   // Trata desconexões de clientes
+    void onCharacteristicWritten(const QLowEnergyCharacteristic& characteristic, const QByteArray& newValue); // Processa dados recebidos
 
 signals:
+    // --- SEÇÃO: SINAIS ---
+
     // Sinais para comunicação externa
-    void packetReceived(int playerIndex, const QByteArray& packetData);
-    void playerConnected(int playerIndex, const QString& type);
-    void playerDisconnected(int playerIndex);
-    void logMessage(const QString& message);
+    void packetReceived(int playerIndex, const QByteArray& packetData);  // Dados recebidos do gamepad
+    void playerConnected(int playerIndex, const QString& type);          // Novo jogador conectado
+    void playerDisconnected(int playerIndex);                            // Jogador desconectado
+    void logMessage(const QString& message);                             // Mensagens de log
 
 private:
-    // Configuração do serviço BLE
+    // --- SEÇÃO: MÉTODOS PRIVADOS ---
+
+    // Configuração do serviço BLE e características
     void setupService();
 
-    // Controlador BLE principal
+    // --- SEÇÃO: MEMBROS PRIVADOS ---
+
+    // Controlador BLE principal (GATT Server)
     QLowEnergyController* m_bleController = nullptr;
-    // Serviço do gamepad
+    // Serviço do gamepad (contém características de entrada/saída)
     QLowEnergyService* m_gamepadService = nullptr;
-    // Característica de vibração
+    // Característica de vibração (para feedback háptico)
     QLowEnergyCharacteristic m_vibrationCharacteristic;
 
-    // Mapeamento de clientes para slots de jogador
+    // Mapeamento de endereços de clientes para índices de jogador
     QHash<QBluetoothAddress, int> m_clientPlayerMap;
-    // Array de slots de jogador
-    bool m_playerSlots[4];
-    // Busca de slot vazio
+    // Array de slots de jogador ocupados (8 jogadores máximo)
+    bool m_playerSlots[8];
+    // Busca de slot vazio para novo jogador
     int findEmptySlot() const;
 };
 

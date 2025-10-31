@@ -8,8 +8,9 @@
 #include <QTimer>
 #include "../protocol/gamepad_packet.h"
 
-#define MAX_PLAYERS 4
+#define MAX_PLAYERS 8
 
+// Classe principal do servidor UDP para gerenciar conexões de jogadores
 class UdpServer : public QObject
 {
     Q_OBJECT
@@ -22,16 +23,26 @@ public:
     bool sendToPlayer(int playerIndex, const QByteArray& data);
 
 public slots:
+    // --- SEÇÃO: SLOTS PÚBLICOS ---
+
     // Inicia o servidor na porta especificada
     void startServer(quint16 port);
     // Para o servidor e limpa recursos
     void stopServer();
 
+    // --- MODIFICAÇÃO ADICIONADA (REQ 2 FIX) ---
+    // Força a desconexão de um jogador específico
+    void forceDisconnectPlayer(int playerIndex);
+
 private slots:
-    // Processa datagramas recebidos
+    // --- SEÇÃO: SLOTS PRIVADOS ---
+
+    // Processa datagramas recebidos dos clientes
     void processPendingDatagrams();
 
 signals:
+    // --- SEÇÃO: SINAIS ---
+
     // Sinaliza recebimento de pacote de gamepad
     void packetReceived(int playerIndex, const GamepadPacket& packet);
     // Notifica conexão de novo jogador
@@ -42,7 +53,9 @@ signals:
     void logMessage(const QString& message);
 
 private:
-    // Identificação única do cliente
+    // --- SEÇÃO: ESTRUTURAS DE DADOS PRIVADAS ---
+
+    // Identificação única do cliente (endereço + porta)
     struct ClientId {
         QHostAddress address;
         quint16 port;
@@ -50,16 +63,22 @@ private:
             return address == other.address && port == other.port;
         }
     };
+
+    // Função hash para ClientId (necessária para QHash)
     friend uint qHash(const ClientId& key, uint seed) {
         return qHash(key.address.toString(), seed) ^ key.port;
     }
+
+    // --- SEÇÃO: MÉTODOS PRIVADOS ---
 
     // Encontra slot vazio para novo jogador
     int findEmptySlot() const;
     // Processa desconexão de jogador
     void handlePlayerDisconnect(int playerIndex);
 
-    // Socket UDP para comunicação
+    // --- SEÇÃO: MEMBROS PRIVADOS ---
+
+    // Socket UDP para comunicação com os clientes
     QUdpSocket* m_udpSocket;
     // Timer para processamento em tempo real
     QTimer* m_processingTimer;
@@ -67,7 +86,7 @@ private:
     QHash<ClientId, int> m_clientPlayerMap;
     // Mapeamento índice do jogador -> cliente
     QHash<int, ClientId> m_playerClientMap;
-    // Controle de slots ocupados
+    // Controle de slots ocupados (array booleano)
     bool m_playerSlots[MAX_PLAYERS];
 };
 

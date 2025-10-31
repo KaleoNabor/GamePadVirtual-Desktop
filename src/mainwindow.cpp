@@ -10,7 +10,10 @@
 #include <QNetworkInterface>
 #include <QPushButton>
 #include <QSpacerItem>
+#include <QMessageBox>
 
+// --- CONSTRUTOR ---
+// Inicializa a janela principal e todos os componentes
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
@@ -38,8 +41,11 @@ MainWindow::MainWindow(QWidget* parent)
     }
 }
 
+// --- DESTRUTOR ---
 MainWindow::~MainWindow() {}
 
+// --- CONFIGURAR INTERFACE ---
+// Cria toda a interface gráfica da aplicação
 void MainWindow::setupUI()
 {
     setWindowTitle("Servidor GamePadVirtual");
@@ -56,6 +62,8 @@ void MainWindow::setupUI()
     setCentralWidget(tabWidget);
 }
 
+// --- CRIAR ABA DE CONEXÕES ---
+// Cria a aba com informações de status das conexões
 QWidget* MainWindow::createConnectionsTab()
 {
     QWidget* tab = new QWidget();
@@ -93,6 +101,8 @@ QWidget* MainWindow::createConnectionsTab()
     return tab;
 }
 
+// --- CRIAR ABA DE TESTE ---
+// Cria a aba com controles visuais para cada jogador
 QWidget* MainWindow::createTestTab()
 {
     QWidget* mainTabContainer = new QWidget();
@@ -116,7 +126,7 @@ QWidget* MainWindow::createTestTab()
         buttonLayout->addWidget(vibrateButton);
         buttonLayout->addStretch();
 
-        pageLayout->addLayout(buttonLayout); // Adiciona a barra de botões no topo da aba
+        pageLayout->addLayout(buttonLayout);
 
         // Conecta os sinais dos botões
         connect(disconnectButton, &QPushButton::clicked, this, [this, i]() {
@@ -129,7 +139,7 @@ QWidget* MainWindow::createTestTab()
 
         // Display visual do gamepad
         m_gamepadDisplays[i] = new GamepadDisplayWidget();
-        pageLayout->addWidget(m_gamepadDisplays[i], 1); // O '1' faz o display se expandir
+        pageLayout->addWidget(m_gamepadDisplays[i], 1);
 
         // Container para dados dos sensores
         QWidget* sensorContainer = new QWidget();
@@ -147,11 +157,18 @@ QWidget* MainWindow::createTestTab()
         pageLayout->addWidget(sensorContainer);
 
         m_playerTabs->addTab(playerPage, QString("❌ Jogador %1").arg(i + 1));
+
+        // Ocultação das abas 5-8 por padrão
+        if (i >= 4) {
+            m_playerTabs->setTabVisible(i, false);
+        }
     }
 
     return mainTabContainer;
 }
 
+// --- ATUALIZAR ESTADO DO GAMEPAD ---
+// Atualiza a interface com os dados recebidos do gamepad
 void MainWindow::onGamepadStateUpdate(int playerIndex, const GamepadPacket& packet)
 {
     if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return;
@@ -170,6 +187,8 @@ void MainWindow::onGamepadStateUpdate(int playerIndex, const GamepadPacket& pack
         .arg(packet.accelZ / 100.0, 0, 'f', 2));
 }
 
+// --- JOGADOR CONECTADO ---
+// Trata a conexão de um novo jogador
 void MainWindow::onPlayerConnected(int playerIndex, const QString& type)
 {
     if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return;
@@ -177,9 +196,24 @@ void MainWindow::onPlayerConnected(int playerIndex, const QString& type)
     // Atualização da interface para jogador conectado
     m_playerConnectionTypes[playerIndex] = type;
     m_playerTabs->setTabText(playerIndex, QString("✅ Jogador %1 (%2)").arg(playerIndex + 1).arg(type));
+
+    // Exibição dinâmica das abas 5-8 quando conectadas
+    if (playerIndex >= 4) {
+        m_playerTabs->setTabVisible(playerIndex, true);
+
+        // Exibição do aviso de limite estendido apenas uma vez
+        if (!m_warningShown) {
+            QMessageBox::information(this, "Limite Estendido",
+                "Mais de 4 jogadores conectados. O limite do servidor foi estendido para 8 jogadores.");
+            m_warningShown = true;
+        }
+    }
+
     updateConnectionStatus();
 }
 
+// --- JOGADOR DESCONECTADO ---
+// Trata a desconexão de um jogador
 void MainWindow::onPlayerDisconnected(int playerIndex)
 {
     if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return;
@@ -192,24 +226,54 @@ void MainWindow::onPlayerDisconnected(int playerIndex)
     m_gyroLabels[playerIndex]->setText("Gyro: (0.00, 0.00, 0.00)");
     m_accelLabels[playerIndex]->setText("Accel: (0.00, 0.00, 0.00)");
 
+    // Ocultação dinâmica das abas 5-8 quando desconectadas
+    if (playerIndex >= 4) {
+        m_playerTabs->setTabVisible(playerIndex, false);
+
+        // Verificação se todos os jogadores extras estão desconectados
+        bool extraPlayersActive = false;
+        for (int i = 4; i < MAX_PLAYERS; ++i) {
+            if (m_playerConnectionTypes[i] != "Nenhum") {
+                extraPlayersActive = true;
+                break;
+            }
+        }
+
+        // Reset da flag de aviso quando nenhum jogador extra estiver ativo
+        if (!extraPlayersActive) {
+            m_warningShown = false;
+        }
+    }
+
     updateConnectionStatus();
 }
 
+// --- BOTÃO DESCONECTAR JOGADOR ---
+// Trata o clique no botão de desconexão manual
 void MainWindow::onDisconnectPlayerClicked(int playerIndex)
 {
     if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return;
 
-    // Se o jogador estiver conectado, força a desconexão
     if (m_playerConnectionTypes[playerIndex] != "Nenhum") {
         qDebug() << "Desconexão manual solicitada para o Jogador" << playerIndex + 1;
 
-        // Esta é a mesma função que o ConnectionManager deve chamar
-        // ao detectar uma desconexão. Ela limpa o gamepad virtual
-        // e emite o sinal 'playerDisconnectedSignal'
-        m_gamepadManager->playerDisconnected(playerIndex);
+        // --- SUBSTITUIÇÃO DO CÓDIGO ANTIGO (REQ 2 FIX) ---
+
+        // 1. Pega o tipo de conexão que este jogador usou
+        const QString& type = m_playerConnectionTypes[playerIndex];
+
+        // 2. Diz ao ConnectionManager para forçar a desconexão do servidor correto
+        // (Isso irá fechar o socket/limpar o slot UDP e disparar a
+        // cadeia de sinais 'playerDisconnected' de qualquer maneira)
+        m_connectionManager->forceDisconnectPlayer(playerIndex, type);
+
+        // (A linha antiga 'm_gamepadManager->playerDisconnected(playerIndex);'
+        // não é mais necessária, pois a cadeia de sinais fará isso por nós)
     }
 }
 
+// --- ATUALIZAR STATUS DE CONEXÃO ---
+// Atualiza os labels de status com a contagem de jogadores conectados
 void MainWindow::updateConnectionStatus()
 {
     // Contagem de jogadores por tipo de conexão
@@ -225,11 +289,15 @@ void MainWindow::updateConnectionStatus()
     m_btStatusLabel->setText(btCount > 0 ? QString("Status: %1 jogador(es) conectado(s).").arg(btCount) : "Status: Aguardando Conexões...");
 }
 
+// --- MENSAGEM DE LOG ---
+// Exibe mensagens de log na barra de status
 void MainWindow::onLogMessage(const QString& message)
 {
     statusBar()->showMessage(message, 5000);
 }
 
+// --- EVENTO DE FECHAR ---
+// Garante a parada adequada dos serviços ao fechar a aplicação
 void MainWindow::closeEvent(QCloseEvent* event)
 {
     qDebug() << "Fechando a aplicacao...";
