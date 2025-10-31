@@ -1,17 +1,16 @@
 #include "udp_server.h"
 #include <QDebug>
 
-// Mensagem de desconexão do protocolo
 const QByteArray DISCONNECT_MESSAGE = "DISCONNECT_GPV_PLAYER";
 
 UdpServer::UdpServer(QObject* parent) : QObject(parent), m_udpSocket(nullptr)
 {
-    // Inicialização dos slots de jogador como livres
+    // Inicializa todos os slots de jogador como livres
     for (int i = 0; i < MAX_PLAYERS; ++i) {
         m_playerSlots[i] = false;
     }
 
-    // Configuração do timer para processamento em alta frequência
+    // Configura timer para processamento em tempo real
     m_processingTimer = new QTimer(this);
     m_processingTimer->setInterval(2);
     connect(m_processingTimer, &QTimer::timeout, this, &UdpServer::processPendingDatagrams);
@@ -24,12 +23,11 @@ UdpServer::~UdpServer()
 
 void UdpServer::startServer(quint16 port)
 {
-    // Verificação se servidor já está ativo
     if (m_udpSocket) return;
 
     m_udpSocket = new QUdpSocket(this);
 
-    // Bind do socket UDP na porta especificada
+    // Inicia servidor UDP na porta especificada
     if (m_udpSocket->bind(QHostAddress::Any, port)) {
         qDebug() << "Servidor de Dados (UDP) iniciado na porta" << port << ".";
         m_processingTimer->start();
@@ -42,7 +40,7 @@ void UdpServer::startServer(quint16 port)
 
 void UdpServer::stopServer()
 {
-    // Parada do timer e limpeza do socket
+    // Para o servidor e libera recursos
     m_processingTimer->stop();
     if (m_udpSocket) {
         m_udpSocket->close();
@@ -53,7 +51,7 @@ void UdpServer::stopServer()
 
 void UdpServer::processPendingDatagrams()
 {
-    // Processamento de datagramas pendentes
+    // Processa todos os datagramas recebidos
     while (m_udpSocket && m_udpSocket->hasPendingDatagrams()) {
         QByteArray datagram;
         datagram.resize(m_udpSocket->pendingDatagramSize());
@@ -63,7 +61,7 @@ void UdpServer::processPendingDatagrams()
 
         ClientId clientId = { senderAddress, senderPort };
 
-        // Verificação de mensagem de desconexão
+        // Trata mensagens de desconexão
         if (datagram == DISCONNECT_MESSAGE) {
             if (m_clientPlayerMap.contains(clientId)) {
                 int playerIndex = m_clientPlayerMap[clientId];
@@ -73,10 +71,10 @@ void UdpServer::processPendingDatagrams()
             continue;
         }
 
-        // Verificação do tamanho mínimo do pacote
+        // Valida tamanho do pacote
         if (datagram.size() < static_cast<qint64>(sizeof(GamepadPacket))) continue;
 
-        // Processamento de novo cliente ou cliente existente
+        // Gerencia conexão de novos clientes
         int playerIndex = -1;
         if (!m_clientPlayerMap.contains(clientId)) {
             playerIndex = findEmptySlot();
@@ -95,7 +93,7 @@ void UdpServer::processPendingDatagrams()
             playerIndex = m_clientPlayerMap[clientId];
         }
 
-        // Emissão do pacote recebido
+        // Emite pacote recebido para processamento
         const GamepadPacket* packet = reinterpret_cast<const GamepadPacket*>(datagram.constData());
         emit packetReceived(playerIndex, *packet);
     }
@@ -103,7 +101,7 @@ void UdpServer::processPendingDatagrams()
 
 bool UdpServer::sendToPlayer(int playerIndex, const QByteArray& data)
 {
-    // Envio de dados para jogador específico via UDP
+    // Envia dados para jogador específico
     if (m_udpSocket && m_playerClientMap.contains(playerIndex)) {
         const ClientId& clientId = m_playerClientMap[playerIndex];
         m_udpSocket->writeDatagram(data, clientId.address, clientId.port);
@@ -114,7 +112,7 @@ bool UdpServer::sendToPlayer(int playerIndex, const QByteArray& data)
 
 int UdpServer::findEmptySlot() const
 {
-    // Busca por slot de jogador disponível
+    // Encontra primeiro slot disponível
     for (int i = 0; i < MAX_PLAYERS; ++i) {
         if (!m_playerSlots[i]) {
             return i;
@@ -125,23 +123,19 @@ int UdpServer::findEmptySlot() const
 
 void UdpServer::handlePlayerDisconnect(int playerIndex)
 {
-    // Processamento de desconexão de jogador
+    // Processa desconexão completa do jogador
     if (playerIndex < 0 || playerIndex >= MAX_PLAYERS || !m_playerSlots[playerIndex]) {
         return;
     }
 
-    // Remoção do mapeamento de cliente
+    // Remove mapeamentos do cliente
     if (m_playerClientMap.contains(playerIndex)) {
         ClientId clientId = m_playerClientMap.value(playerIndex);
         m_clientPlayerMap.remove(clientId);
     }
 
-    // Limpeza dos mapeamentos principais
     m_playerClientMap.remove(playerIndex);
-
-    // Liberação do slot do jogador
     m_playerSlots[playerIndex] = false;
 
-    // Emissão do sinal de desconexão
     emit playerDisconnected(playerIndex);
 }

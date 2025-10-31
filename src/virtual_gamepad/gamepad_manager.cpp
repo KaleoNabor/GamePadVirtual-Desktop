@@ -101,7 +101,7 @@ void GamepadManager::processLatestPackets()
                 // Mapeamento dos botões
                 report.wButtons = packet.buttons;
 
-                // Mapeamento dos gatilhos
+                // Usa os valores analógicos dos gatilhos diretamente
                 report.bLeftTrigger = packet.leftTrigger;
                 report.bRightTrigger = packet.rightTrigger;
 
@@ -170,8 +170,28 @@ void GamepadManager::cleanupGamepad(int playerIndex)
 void GamepadManager::handleVibration(int playerIndex, UCHAR largeMotor, UCHAR smallMotor)
 {
     if (largeMotor > 0 || smallMotor > 0) {
+        // Cria um JSON com ritmo (pattern) E intensidade (amplitudes)
+        // Isso prepara o servidor para o futuro (conforme nossa conversa anterior)
         int duration = std::min(std::max(static_cast<int>(largeMotor), static_cast<int>(smallMotor)) * 2, 500);
-        QByteArray command = QByteArray("{\"type\":\"vibration\",\"pattern\":[") + QByteArray::number(duration) + QByteArray("]}");
+        int amplitude = std::min(std::max(static_cast<int>(largeMotor), static_cast<int>(smallMotor)), 255);
+
+        // Formato JSON: { "type": "vibration", "pattern": [0, DURAÇÃO], "amplitudes": [0, INTENSIDADE] }
+        QByteArray command = QByteArray("{\"type\":\"vibration\",\"pattern\":[0,") +
+            QByteArray::number(duration) +
+            QByteArray("],\"amplitudes\":[0,") +
+            QByteArray::number(amplitude) +
+            QByteArray("]}");
+
         emit vibrationCommandReady(playerIndex, command);
     }
+}
+
+void GamepadManager::testVibration(int playerIndex)
+{
+    if (playerIndex < 0 || playerIndex >= MAX_PLAYERS || !m_connected[playerIndex]) {
+        return; // Não faz nada se o jogador não estiver conectado
+    }
+
+    // Simula um comando de motor forte (255) para o teste
+    handleVibration(playerIndex, 255, 0);
 }

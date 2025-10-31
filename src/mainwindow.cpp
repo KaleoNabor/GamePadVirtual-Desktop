@@ -8,6 +8,8 @@
 #include <QCloseEvent>
 #include <QDebug>
 #include <QNetworkInterface>
+#include <QPushButton>
+#include <QSpacerItem>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -104,11 +106,30 @@ QWidget* MainWindow::createTestTab()
     {
         QWidget* playerPage = new QWidget();
         QVBoxLayout* pageLayout = new QVBoxLayout(playerPage);
-        pageLayout->setAlignment(Qt::AlignCenter);
+
+        // Layout dos botões
+        QHBoxLayout* buttonLayout = new QHBoxLayout();
+        QPushButton* disconnectButton = new QPushButton("Desconectar Jogador");
+        QPushButton* vibrateButton = new QPushButton("Testar Vibração");
+
+        buttonLayout->addWidget(disconnectButton);
+        buttonLayout->addWidget(vibrateButton);
+        buttonLayout->addStretch();
+
+        pageLayout->addLayout(buttonLayout); // Adiciona a barra de botões no topo da aba
+
+        // Conecta os sinais dos botões
+        connect(disconnectButton, &QPushButton::clicked, this, [this, i]() {
+            onDisconnectPlayerClicked(i);
+            });
+
+        connect(vibrateButton, &QPushButton::clicked, m_gamepadManager, [this, i]() {
+            m_gamepadManager->testVibration(i);
+            });
 
         // Display visual do gamepad
         m_gamepadDisplays[i] = new GamepadDisplayWidget();
-        pageLayout->addWidget(m_gamepadDisplays[i], 1);
+        pageLayout->addWidget(m_gamepadDisplays[i], 1); // O '1' faz o display se expandir
 
         // Container para dados dos sensores
         QWidget* sensorContainer = new QWidget();
@@ -174,6 +195,21 @@ void MainWindow::onPlayerDisconnected(int playerIndex)
     updateConnectionStatus();
 }
 
+void MainWindow::onDisconnectPlayerClicked(int playerIndex)
+{
+    if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return;
+
+    // Se o jogador estiver conectado, força a desconexão
+    if (m_playerConnectionTypes[playerIndex] != "Nenhum") {
+        qDebug() << "Desconexão manual solicitada para o Jogador" << playerIndex + 1;
+
+        // Esta é a mesma função que o ConnectionManager deve chamar
+        // ao detectar uma desconexão. Ela limpa o gamepad virtual
+        // e emite o sinal 'playerDisconnectedSignal'
+        m_gamepadManager->playerDisconnected(playerIndex);
+    }
+}
+
 void MainWindow::updateConnectionStatus()
 {
     // Contagem de jogadores por tipo de conexão
@@ -182,7 +218,7 @@ void MainWindow::updateConnectionStatus()
 
     for (int i = 0; i < MAX_PLAYERS; ++i) {
         if (m_playerConnectionTypes[i] == "Wi-Fi" || m_playerConnectionTypes[i] == "Ancoragem USB") networkCount++;
-        else if (m_playerConnectionTypes[i] == "Bluetooth") btCount++;
+        else if (m_playerConnectionTypes[i] == "Bluetooth" || m_playerConnectionTypes[i] == "Bluetooth LE") btCount++;
     }
 
     m_networkStatusLabel->setText(networkCount > 0 ? QString("Status: %1 jogador(es) conectado(s).").arg(networkCount) : "Status: Aguardando Conexões...");

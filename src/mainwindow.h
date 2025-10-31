@@ -28,6 +28,8 @@ private slots:
     void onPlayerDisconnected(int playerIndex);
     void onLogMessage(const QString& message);
 
+    void onDisconnectPlayerClicked(int playerIndex);
+
 private:
     void setupUI();
     QWidget* createConnectionsTab();

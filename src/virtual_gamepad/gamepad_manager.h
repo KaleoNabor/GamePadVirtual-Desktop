@@ -37,6 +37,9 @@ public slots:
     void playerConnected(int playerIndex, const QString& type);
     void playerDisconnected(int playerIndex);
 
+    // +++ ADICIONE ESTE NOVO SLOT +++
+    void testVibration(int playerIndex);
+
 private slots:
     // Slot do loop de processamento principal
     void processLatestPackets();
