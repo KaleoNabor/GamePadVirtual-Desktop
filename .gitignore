@@ -37,3 +37,10 @@ Makefile*
 # Arquivos de sistema operacional
 .DS_Store
 Thumbs.db
+
+# --- EXCEÇÕES ADICIONADAS ---
+# Para de ignorar os binários específicos do ViGEmClient
+# (Converte \ para / para o padrão do git)
+!ViGEmClient-master/bin/release/x64/*.dll
+!ViGEmClient-master/bin/release/x64/*.lib
+!ViGEmClient-master/bin/release/x64/*.exe

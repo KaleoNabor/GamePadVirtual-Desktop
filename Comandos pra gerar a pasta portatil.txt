@@ -1,0 +1,9 @@
+abra o terminal do MSVC 2022 64-bit:
+Entre na pasta release pelo terminal
+	Ex: cd ~"caminho para a pasta do projeto"\GamePadVirtual-Desktop\release
+Dentro dela Digite o comando:
+	windeployqt --release --network --bluetooth GamePadVirtual-Desktop.exe
+
+Acesse a pasta: C:\Projetos\GamePadVirtual-Desktop\ViGEmClient-master\bin\release\x64 pelo explorador de arquivos mesmo, e copie o arquivo ViGEmClient.dll e cole na pasta release
+
+E pronto, O executável portátil está pronto. Mas certifiquese de ter instalado o driver ViGEmBus_1.22.0_x64_x86_arm64.exe na pasta C:\Projetos\GamePadVirtual-Desktop\ViGEmClient-master
