@@ -103,8 +103,24 @@ void UdpServer::processPendingDatagrams()
                 // Atualiza mapeamentos bidirecionais
                 m_clientPlayerMap[clientId] = playerIndex;
                 m_playerClientMap[playerIndex] = clientId;
-                qDebug() << "Novo jogador" << (playerIndex + 1) << "conectado via UDP:" << senderAddress.toString();
-                emit playerConnected(playerIndex, "Wi-Fi (UDP)"); // Notifica nova conexão
+
+                // --- DETECÇÃO AUTOMÁTICA DO TIPO DE CONEXÃO ---
+                QString address = senderAddress.toString();
+                QString connectionType;
+
+                // Sub-redes comuns de Ancoragem USB
+                if (address.startsWith("192.168.42.") ||
+                    address.startsWith("192.168.43.") ||
+                    address.startsWith("192.168.100.")) {
+                    connectionType = "Ancoragem USB";
+                }
+                else {
+                    connectionType = "Wi-Fi (UDP)";
+                }
+
+                qDebug() << "Novo jogador" << (playerIndex + 1) << "conectado via" << connectionType << ":" << address;
+                emit playerConnected(playerIndex, connectionType);
+                // --- FIM DA MODIFICAÇÃO ---
             }
             else {
                 // --- SERVIDOR CHEIO ---
