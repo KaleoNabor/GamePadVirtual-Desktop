@@ -1,10 +1,11 @@
+// gamepad_manager.cpp
+
 #define NOMINMAX
 #include "gamepad_manager.h"
 #include <QDebug>
 #include <cmath>
 #include <algorithm>
 
-// Callback de notificação para vibração do controle
 void CALLBACK GamepadManager::x360NotificationCallback(
     VigemClient Client, VigemTarget Target, UCHAR LargeMotor,
     UCHAR SmallMotor, UCHAR LedNumber, LPVOID UserData)
@@ -13,10 +14,9 @@ void CALLBACK GamepadManager::x360NotificationCallback(
     GamepadManager* manager = static_cast<GamepadManager*>(UserData);
     if (!manager) return;
 
-    // Encontra o jogador correspondente ao target e processa vibração
     for (int i = 0; i < MAX_PLAYERS; ++i) {
         if (manager->m_targets[i] == Target) {
-            manager->handleVibration(i, LargeMotor, SmallMotor);
+            manager->handleX360Vibration(i, LargeMotor, SmallMotor);
             break;
         }
     }
@@ -25,18 +25,20 @@ void CALLBACK GamepadManager::x360NotificationCallback(
 GamepadManager::GamepadManager(QObject* parent)
     : QObject(parent), m_client(nullptr)
 {
-    // Inicialização dos arrays de estado
     for (int i = 0; i < MAX_PLAYERS; ++i) {
         m_targets[i] = nullptr;
         m_connected[i] = false;
         m_dirtyFlags[i].storeRelease(0);
     }
 
-    // Configuração do timer para processamento em loop de jogo
     m_processingTimer = new QTimer(this);
     m_processingTimer->setInterval(8);
     connect(m_processingTimer, &QTimer::timeout, this, &GamepadManager::processLatestPackets);
     m_processingTimer->start();
+
+    m_cemuhookSocket = new QUdpSocket(this);
+    m_cemuhookHost.setAddress("127.0.0.1");
+    m_cemuhookPort = 26760;
 }
 
 GamepadManager::~GamepadManager()
@@ -46,7 +48,6 @@ GamepadManager::~GamepadManager()
 
 bool GamepadManager::initialize()
 {
-    // Alocação e conexão do cliente ViGEm
     m_client = vigem_alloc();
     if (m_client == nullptr) {
         qCritical() << "Falha ao alocar cliente ViGEm";
@@ -65,7 +66,6 @@ bool GamepadManager::initialize()
 
 void GamepadManager::shutdown()
 {
-    // Limpeza de todos os gamepads virtuais
     for (int i = 0; i < MAX_PLAYERS; ++i) {
         cleanupGamepad(i);
     }
@@ -76,16 +76,13 @@ void GamepadManager::shutdown()
     }
 }
 
-// Recebimento rápido de pacotes da thread de rede
 void GamepadManager::onPacketReceived(int playerIndex, const GamepadPacket& packet)
 {
     if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return;
-
     m_latestPackets[playerIndex] = packet;
     m_dirtyFlags[playerIndex].storeRelease(1);
 }
 
-// Processamento dos pacotes no loop de jogo
 void GamepadManager::processLatestPackets()
 {
     for (int i = 0; i < MAX_PLAYERS; ++i) {
@@ -93,31 +90,43 @@ void GamepadManager::processLatestPackets()
 
             const GamepadPacket& packet = m_latestPackets[i];
 
-            // Atualização do estado do controle virtual ViGEm
-            if (m_connected[i] && m_targets[i]) {
+            if (m_connected[i] && m_targets[i])
+            {
                 XUSB_REPORT report;
                 XUSB_REPORT_INIT(&report);
-
-                // Mapeamento dos botões
                 report.wButtons = packet.buttons;
-
-                // Usa os valores analógicos dos gatilhos diretamente
                 report.bLeftTrigger = packet.leftTrigger;
                 report.bRightTrigger = packet.rightTrigger;
-
-                // Escalonamento dos analógicos para formato XInput
                 report.sThumbLX = static_cast<SHORT>(packet.leftStickX * 257);
                 report.sThumbLY = static_cast<SHORT>(-packet.leftStickY * 257);
                 report.sThumbRX = static_cast<SHORT>(packet.rightStickX * 257);
                 report.sThumbRY = static_cast<SHORT>(-packet.rightStickY * 257);
-
                 vigem_target_x360_update(m_client, m_targets[i], report);
             }
 
-            // Emissão do sinal para atualização da UI
-            emit gamepadStateUpdated(i, packet);
+            if (m_connected[i])
+            {
+                QByteArray dsuPacket;
+                dsuPacket.resize(100);
+                dsuPacket.fill(0);
 
-            // Reset da flag de dados novos
+                dsuPacket[0] = 'D'; dsuPacket[1] = 'S'; dsuPacket[2] = 'U'; dsuPacket[3] = 'C';
+                *reinterpret_cast<quint16*>(dsuPacket.data() + 4) = 1001;
+                *reinterpret_cast<quint16*>(dsuPacket.data() + 6) = 100;
+                *reinterpret_cast<quint32*>(dsuPacket.data() + 12) = i;
+
+                *reinterpret_cast<float*>(dsuPacket.data() + 40) = (packet.accelX / 4096.0f);
+                *reinterpret_cast<float*>(dsuPacket.data() + 44) = (packet.accelY / 4096.0f);
+                *reinterpret_cast<float*>(dsuPacket.data() + 48) = (packet.accelZ / 4096.0f);
+
+                *reinterpret_cast<float*>(dsuPacket.data() + 52) = packet.gyroX;
+                *reinterpret_cast<float*>(dsuPacket.data() + 56) = packet.gyroY;
+                *reinterpret_cast<float*>(dsuPacket.data() + 60) = packet.gyroZ;
+
+                m_cemuhookSocket->writeDatagram(dsuPacket, m_cemuhookHost, m_cemuhookPort);
+            }
+
+            emit gamepadStateUpdated(i, packet);
             m_dirtyFlags[i].storeRelease(0);
         }
     }
@@ -127,7 +136,6 @@ void GamepadManager::playerConnected(int playerIndex, const QString& type)
 {
     if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return;
 
-    // Criação de gamepad virtual para jogador conectado
     if (!m_connected[playerIndex]) {
         m_targets[playerIndex] = vigem_target_x360_alloc();
         const VIGEM_ERROR addResult = vigem_target_add(m_client, m_targets[playerIndex]);
@@ -135,10 +143,10 @@ void GamepadManager::playerConnected(int playerIndex, const QString& type)
             vigem_target_x360_register_notification(m_client, m_targets[playerIndex],
                 &GamepadManager::x360NotificationCallback, this);
             m_connected[playerIndex] = true;
-            qDebug() << "Gamepad virtual criado para jogador" << playerIndex + 1 << "via" << type;
+            qDebug() << "Gamepad virtual XBOX criado para jogador" << playerIndex + 1;
         }
         else {
-            qCritical() << "Falha ao adicionar gamepad virtual para jogador" << playerIndex + 1 << ":" << addResult;
+            qCritical() << "Falha ao adicionar gamepad XBOX para jogador" << playerIndex + 1;
             vigem_target_free(m_targets[playerIndex]);
             m_targets[playerIndex] = nullptr;
         }
@@ -149,15 +157,14 @@ void GamepadManager::playerConnected(int playerIndex, const QString& type)
 void GamepadManager::playerDisconnected(int playerIndex)
 {
     if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return;
-
     cleanupGamepad(playerIndex);
     emit playerDisconnectedSignal(playerIndex);
 }
 
 void GamepadManager::cleanupGamepad(int playerIndex)
 {
-    // Remoção do gamepad virtual do jogador
     if (m_connected[playerIndex] && m_targets[playerIndex]) {
+        vigem_target_x360_unregister_notification(m_targets[playerIndex]);
         vigem_target_remove(m_client, m_targets[playerIndex]);
         vigem_target_free(m_targets[playerIndex]);
         m_targets[playerIndex] = nullptr;
@@ -166,32 +173,20 @@ void GamepadManager::cleanupGamepad(int playerIndex)
     }
 }
 
-// Processamento dos comandos de vibração
-void GamepadManager::handleVibration(int playerIndex, UCHAR largeMotor, UCHAR smallMotor)
+void GamepadManager::handleX360Vibration(int playerIndex, UCHAR largeMotor, UCHAR smallMotor)
 {
     if (largeMotor > 0 || smallMotor > 0) {
-        // Cria um JSON com ritmo (pattern) E intensidade (amplitudes)
-        // Isso prepara o servidor para o futuro (conforme nossa conversa anterior)
         int duration = std::min(std::max(static_cast<int>(largeMotor), static_cast<int>(smallMotor)) * 2, 500);
         int amplitude = std::min(std::max(static_cast<int>(largeMotor), static_cast<int>(smallMotor)), 255);
-
-        // Formato JSON: { "type": "vibration", "pattern": [0, DURAÇÃO], "amplitudes": [0, INTENSIDADE] }
         QByteArray command = QByteArray("{\"type\":\"vibration\",\"pattern\":[0,") +
-            QByteArray::number(duration) +
-            QByteArray("],\"amplitudes\":[0,") +
-            QByteArray::number(amplitude) +
-            QByteArray("]}");
-
+            QByteArray::number(duration) + QByteArray("],\"amplitudes\":[0,") +
+            QByteArray::number(amplitude) + QByteArray("]}");
         emit vibrationCommandReady(playerIndex, command);
     }
 }
 
 void GamepadManager::testVibration(int playerIndex)
 {
-    if (playerIndex < 0 || playerIndex >= MAX_PLAYERS || !m_connected[playerIndex]) {
-        return; // Não faz nada se o jogador não estiver conectado
-    }
-
-    // Simula um comando de motor forte (255) para o teste
-    handleVibration(playerIndex, 255, 0);
+    if (playerIndex < 0 || playerIndex >= MAX_PLAYERS || !m_connected[playerIndex]) return;
+    handleX360Vibration(playerIndex, 255, 0);
 }
