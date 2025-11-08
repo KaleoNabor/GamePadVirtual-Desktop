@@ -8,6 +8,7 @@
 #include <QAtomicInt>
 #include <QUdpSocket>
 #include <QHostAddress>
+#include <QElapsedTimer>
 #include "../protocol/gamepad_packet.h"
 
 #define _WINSOCKAPI_
@@ -24,10 +25,13 @@ class GamepadManager : public QObject
 {
     Q_OBJECT
 
+        // CORREÇÃO: Alterado para 1 controlador
+        static const int DSU_MAX_CONTROLLERS = 1; // ANTES: 4
+
 public:
     explicit GamepadManager(QObject* parent = nullptr);
     ~GamepadManager();
-
+    void printServerStatus();
     bool initialize();
     void shutdown();
 
@@ -39,6 +43,7 @@ public slots:
 
 private slots:
     void processLatestPackets();
+    void readPendingCemuhookDatagrams();
 
 signals:
     void gamepadStateUpdated(int playerIndex, const GamepadPacket& packet);
@@ -49,6 +54,7 @@ signals:
 private:
     void cleanupGamepad(int playerIndex);
     void handleX360Vibration(int playerIndex, UCHAR largeMotor, UCHAR smallMotor);
+    quint8 mapDpadToDS4(const GamepadPacket& packet); // ADICIONADA: Função para mapear D-pad para DS4
 
     VigemClient m_client;
     VigemTarget m_targets[MAX_PLAYERS];
@@ -60,6 +66,16 @@ private:
     QUdpSocket* m_cemuhookSocket;
     QHostAddress m_cemuhookHost;
     quint16 m_cemuhookPort;
+
+    // Variáveis para gerenciar a conexão com o cliente Cemuhook
+    QHostAddress m_cemuhookClientAddress;
+    quint16 m_cemuhookClientPort;
+    bool m_cemuhookClientSubscribed;
+    QElapsedTimer m_cemuhookClientTimer;
+
+    // --- VARIÁVEIS ADICIONADAS ---
+    quint32 m_dsuPacketCounter[MAX_PLAYERS]; // Contador de pacotes para o DSU
+    uint m_dsuLastKeepAlive[MAX_PLAYERS]; // Contador para o 'keep-alive' do DSU
 
     static void CALLBACK x360NotificationCallback(
         VigemClient Client, VigemTarget Target, UCHAR LargeMotor,
