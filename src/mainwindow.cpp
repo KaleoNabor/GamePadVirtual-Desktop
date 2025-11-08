@@ -198,16 +198,19 @@ void MainWindow::onGamepadStateUpdate(int playerIndex, const GamepadPacket& pack
     // Atualiza display visual do controle
     m_gamepadDisplays[playerIndex]->updateState(packet);
 
-    // Atualiza labels dos sensores
+    // O Giroscópio está correto (dividido por 100.0)
     m_gyroLabels[playerIndex]->setText(QString("Gyro Celular: (%1, %2, %3)")
         .arg(packet.gyroX / 100.0, 0, 'f', 2)
         .arg(packet.gyroY / 100.0, 0, 'f', 2)
         .arg(packet.gyroZ / 100.0, 0, 'f', 2));
 
+    // --- CORREÇÃO AQUI ---
+    // Mude a divisão do Acelerômetro para a escala correta (g's)
     m_accelLabels[playerIndex]->setText(QString("Accel Celular: (%1, %2, %3)")
-        .arg(packet.accelX / 100.0, 0, 'f', 2)
-        .arg(packet.accelY / 100.0, 0, 'f', 2)
-        .arg(packet.accelZ / 100.0, 0, 'f', 2));
+        .arg(packet.accelX / 4096.0, 0, 'f', 2) // ANTES: 100.0
+        .arg(packet.accelY / 4096.0, 0, 'f', 2) // ANTES: 100.0
+        .arg(packet.accelZ / 4096.0, 0, 'f', 2)); // ANTES: 100.0
+    // --- FIM DA CORREÇÃO ---
 }
 
 // Gerencia conexão de novos jogadores

@@ -352,7 +352,7 @@ void GamepadManager::readPendingCemuhookDatagrams()
 
             m_cemuhookSocket->writeDatagram(response, senderAddress, senderPort);
         }
-        else if (requestType == 0x100001)
+        else if (requestType == 0x100001) // Pedido de INFORMAÇÕES
         {
             qDebug() << "🔧 Cliente solicitou INFORMAÇÕES";
 
@@ -408,7 +408,9 @@ void GamepadManager::readPendingCemuhookDatagrams()
                 m_cemuhookSocket->writeDatagram(response, senderAddress, senderPort);
             }
 
-            // Inscrição automática para streaming
+            // --- REMOVA ESTAS LINHAS ---
+            // (Não vamos mais iniciar o stream aqui)
+            /*
             if (!m_cemuhookClientSubscribed) {
                 qDebug() << "🎮 CLIENTE DSU INSCRITO:" << senderAddress.toString() << ":" << senderPort;
                 qDebug() << "   📡 Iniciando streaming de dados...";
@@ -416,13 +418,16 @@ void GamepadManager::readPendingCemuhookDatagrams()
             m_cemuhookClientAddress = senderAddress;
             m_cemuhookClientPort = senderPort;
             m_cemuhookClientSubscribed = true;
+            */
+            // --- FIM DA REMOÇÃO ---
         }
-        else if (requestType == 0x100002)
+        else if (requestType == 0x100002) // Pedido de DADOS
         {
+            // O cliente PEDE para iniciar o stream.
             if (!m_cemuhookClientSubscribed) {
                 qDebug() << "🎮 CLIENTE DSU INSCRITO (via DADOS):" << senderAddress.toString() << ":" << senderPort;
+                qDebug() << "   📡 Iniciando streaming de dados...";
             }
-
             m_cemuhookClientAddress = senderAddress;
             m_cemuhookClientPort = senderPort;
             m_cemuhookClientSubscribed = true;
