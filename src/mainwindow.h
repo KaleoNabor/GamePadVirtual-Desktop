@@ -1,11 +1,10 @@
-// mainwindow.h
-
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
 #include <QMainWindow>
 #include <QLabel>
 #include <QTabWidget>
+#include <QComboBox>
 #include "communication/connection_manager.h"
 #include "protocol/gamepad_packet.h"
 #include "gamepaddisplaywidget.h"
@@ -26,61 +25,43 @@ protected:
     void closeEvent(QCloseEvent* event) override;
 
 private slots:
-    // Atualiza a interface com dados recebidos do gamepad
+    // Sistema de atualização de estado
     void onGamepadStateUpdate(int playerIndex, const GamepadPacket& packet);
-
-    // Gerencia conexão de novos jogadores
     void onPlayerConnected(int playerIndex, const QString& type);
-
-    // Gerencia desconexão de jogadores
     void onPlayerDisconnected(int playerIndex);
-
-    // Exibe mensagens de log na barra de status
     void onLogMessage(const QString& message);
-
-    // Processa clique no botão de desconectar jogador
     void onDisconnectPlayerClicked(int playerIndex);
 
+    // Sistema de status Cemuhook DSU
+    void onDsuClientConnected(const QString& address, quint16 port);
+    void onDsuClientDisconnected();
+
 private:
-    // Configura a interface gráfica principal
+    // Inicialização da interface gráfica
     void setupUI();
-
-    // Cria a aba de configurações de conexão
     QWidget* createConnectionsTab();
-
-    // Cria a aba de teste e configuração de controles
     QWidget* createTestTab();
-
-    // Atualiza os status de conexão na interface
     void updateConnectionStatus();
 
-    // Gerenciador de controles virtuais
+    // Componentes principais do sistema
     GamepadManager* m_gamepadManager;
-
-    // Gerenciador de conexões de rede/bluetooth
     ConnectionManager* m_connectionManager;
 
-    // Labels para status de conexão de rede
+    // Sistema de status e feedback
     QLabel* m_networkStatusLabel;
     QLabel* m_btStatusLabel;
+    QLabel* m_cemuhookStatusLabel;
 
-    // Widget de abas para cada jogador
+    // Sistema de exibição dos jogadores
     QTabWidget* m_playerTabs;
-
-    // Displays visuais dos controles
     GamepadDisplayWidget* m_gamepadDisplays[MAX_PLAYERS];
-
-    // Labels para exibir dados dos sensores
     QLabel* m_gyroLabels[MAX_PLAYERS];
     QLabel* m_accelLabels[MAX_PLAYERS];
-
-    // Containers para widgets de sensores
     QWidget* m_sensorWidgetWrappers[MAX_PLAYERS];
+    QComboBox* m_controllerTypeSelectors[MAX_PLAYERS];
 
-    // Tipos de conexão de cada jogador
+    // Estado interno da aplicação
     QString m_playerConnectionTypes[MAX_PLAYERS];
-
-    // Flag para controle de exibição de avisos
     bool m_warningShown = false;
 };
 

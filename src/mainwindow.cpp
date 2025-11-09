@@ -1,5 +1,3 @@
-// mainwindow.cpp
-
 #include "mainwindow.h"
 #include "gamepaddisplaywidget.h"
 #include <QVBoxLayout>
@@ -13,17 +11,21 @@
 #include <QPushButton>
 #include <QSpacerItem>
 #include <QMessageBox>
+#include <QComboBox>
 
-// Construtor principal - inicializa componentes e conexões
+// =============================================
+// CONSTRUTOR E INICIALIZAÇÃO
+// =============================================
+
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
-    // Inicializa tipos de conexão dos jogadores
+    // Inicializa estado dos jogadores
     for (int i = 0; i < MAX_PLAYERS; ++i) {
         m_playerConnectionTypes[i] = "Nenhum";
     }
 
-    // Cria gerenciadores principais
+    // Cria componentes principais
     m_gamepadManager = new GamepadManager(this);
     m_connectionManager = new ConnectionManager(m_gamepadManager, this);
 
@@ -32,6 +34,8 @@ MainWindow::MainWindow(QWidget* parent)
     connect(m_gamepadManager, &GamepadManager::playerConnectedSignal, this, &MainWindow::onPlayerConnected);
     connect(m_gamepadManager, &GamepadManager::playerDisconnectedSignal, this, &MainWindow::onPlayerDisconnected);
     connect(m_connectionManager, &ConnectionManager::logMessage, this, &MainWindow::onLogMessage);
+    connect(m_gamepadManager, &GamepadManager::dsuClientConnected, this, &MainWindow::onDsuClientConnected);
+    connect(m_gamepadManager, &GamepadManager::dsuClientDisconnected, this, &MainWindow::onDsuClientDisconnected);
 
     // Configura interface e inicia serviços
     setupUI();
@@ -41,16 +45,17 @@ MainWindow::MainWindow(QWidget* parent)
     }
 }
 
-// Destrutor
 MainWindow::~MainWindow() {}
 
-// Configura a interface gráfica principal
+// =============================================
+// CONFIGURAÇÃO DA INTERFACE PRINCIPAL
+// =============================================
+
 void MainWindow::setupUI()
 {
     setWindowTitle("Servidor GamePadVirtual");
     setMinimumSize(800, 600);
 
-    // Cria sistema de abas principal
     QTabWidget* tabWidget = new QTabWidget();
     QWidget* connectionsTab = createConnectionsTab();
     QWidget* testTab = createTestTab();
@@ -61,7 +66,10 @@ void MainWindow::setupUI()
     setCentralWidget(tabWidget);
 }
 
-// Cria a aba de configurações de conexão
+// =============================================
+// ABA DE CONEXÕES - CONFIGURAÇÃO DE REDE
+// =============================================
+
 QWidget* MainWindow::createConnectionsTab()
 {
     QWidget* tab = new QWidget();
@@ -69,7 +77,7 @@ QWidget* MainWindow::createConnectionsTab()
     mainLayout->setContentsMargins(20, 20, 20, 20);
     mainLayout->setSpacing(15);
 
-    // Grupo para conexões de rede (Wi-Fi/USB)
+    // Seção de conexão de rede (Wi-Fi/USB)
     QGroupBox* networkGroup = new QGroupBox("Conexão de Rede (Wi-Fi / Ancoragem USB)");
     QVBoxLayout* networkLayout = new QVBoxLayout(networkGroup);
 
@@ -85,21 +93,38 @@ QWidget* MainWindow::createConnectionsTab()
     networkLayout->addWidget(usbInstruction);
     networkLayout->addWidget(m_networkStatusLabel);
 
-    // Grupo para conexões Bluetooth
+    // Seção de conexão Bluetooth
     QGroupBox* btGroup = new QGroupBox("Bluetooth");
     QVBoxLayout* btLayout = new QVBoxLayout(btGroup);
 
     m_btStatusLabel = new QLabel("Status: Aguardando Conexões...");
     btLayout->addWidget(m_btStatusLabel);
 
+    // Seção do servidor Cemuhook DSU
+    QGroupBox* dsuGroup = new QGroupBox("Servidor de Movimento (Cemuhook DSU)");
+    QVBoxLayout* dsuLayout = new QVBoxLayout(dsuGroup);
+
+    QLabel* dsuInfo = new QLabel("Fornece dados de movimento para emuladores (ex: Cemu, Yuzu) quando o controle está no modo 'Xbox 360'.");
+    dsuInfo->setWordWrap(true);
+
+    m_cemuhookStatusLabel = new QLabel("Status: Inativo. (Aguardando na porta 26760)");
+    m_cemuhookStatusLabel->setStyleSheet("color: #FF9800;");
+
+    dsuLayout->addWidget(dsuInfo);
+    dsuLayout->addWidget(m_cemuhookStatusLabel);
+
     mainLayout->addWidget(networkGroup);
     mainLayout->addWidget(btGroup);
+    mainLayout->addWidget(dsuGroup);
     mainLayout->addStretch();
 
     return tab;
 }
 
-// Cria a aba de teste e configuração de controles
+// =============================================
+// ABA DE TESTE - CONTROLES E SENSORES
+// =============================================
+
 QWidget* MainWindow::createTestTab()
 {
     QWidget* mainTabContainer = new QWidget();
@@ -108,24 +133,32 @@ QWidget* MainWindow::createTestTab()
     m_playerTabs = new QTabWidget();
     mainLayout->addWidget(m_playerTabs);
 
-    // Cria uma página de configuração para cada jogador
+    // Cria interface para cada jogador
     for (int i = 0; i < MAX_PLAYERS; ++i)
     {
         QWidget* playerPage = new QWidget();
         QVBoxLayout* pageLayout = new QVBoxLayout(playerPage);
 
-        // Layout superior com botões de ação
+        // Barra de ferramentas do jogador
         QHBoxLayout* buttonLayout = new QHBoxLayout();
         QPushButton* disconnectButton = new QPushButton("Desconectar Jogador");
         QPushButton* vibrateButton = new QPushButton("Testar Vibração");
 
+        // Seletor de tipo de controle
+        m_controllerTypeSelectors[i] = new QComboBox();
+        m_controllerTypeSelectors[i]->addItem("Xbox 360", 0);
+        m_controllerTypeSelectors[i]->addItem("DualShock 4", 1);
+        m_controllerTypeSelectors[i]->setToolTip("Muda o tipo de controle virtual. A mudança ocorre na próxima conexão.");
+        m_controllerTypeSelectors[i]->setCurrentIndex(1);
+
         buttonLayout->addWidget(disconnectButton);
         buttonLayout->addWidget(vibrateButton);
+        buttonLayout->addWidget(m_controllerTypeSelectors[i]);
         buttonLayout->addStretch();
 
         pageLayout->addLayout(buttonLayout);
 
-        // Conecta botões às funções correspondentes
+        // Conexões dos controles
         connect(disconnectButton, &QPushButton::clicked, this, [this, i]() {
             onDisconnectPlayerClicked(i);
             });
@@ -134,54 +167,42 @@ QWidget* MainWindow::createTestTab()
             m_gamepadManager->testVibration(i);
             });
 
+        connect(m_controllerTypeSelectors[i], QOverload<int>::of(&QComboBox::currentIndexChanged),
+            m_gamepadManager, [this, i](int index) {
+                m_gamepadManager->onControllerTypeChanged(i, index);
+                m_gamepadDisplays[i]->setControllerType(index);
+            });
+
         // Display visual do controle
         m_gamepadDisplays[i] = new GamepadDisplayWidget();
+        m_gamepadDisplays[i]->setControllerType(1);
         pageLayout->addWidget(m_gamepadDisplays[i], 1);
 
-        // Container para dados dos sensores
+        // Área de dados dos sensores
         m_sensorWidgetWrappers[i] = new QWidget();
         QVBoxLayout* sensorMainLayout = new QVBoxLayout(m_sensorWidgetWrappers[i]);
         sensorMainLayout->setContentsMargins(0, 5, 0, 5);
 
-        // Linha horizontal para dados dos sensores
         QWidget* dataRowWidget = new QWidget();
         QHBoxLayout* sensorDataLayout = new QHBoxLayout(dataRowWidget);
 
-        // Labels para dados dos sensores do celular
         m_gyroLabels[i] = new QLabel("Gyro Celular: (0.00, 0.00, 0.00)");
         m_accelLabels[i] = new QLabel("Accel Celular: (0.00, 0.00, 0.00)");
-
         m_gyroLabels[i]->setStyleSheet("color: #4CAF50;");
         m_accelLabels[i]->setStyleSheet("color: #4CAF50;");
 
-        // Organiza labels na linha horizontal
         sensorDataLayout->addStretch();
         sensorDataLayout->addWidget(m_gyroLabels[i]);
         sensorDataLayout->addSpacerItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
         sensorDataLayout->addWidget(m_accelLabels[i]);
         sensorDataLayout->addStretch();
 
-        // Label informativo sobre servidor Cemuhook
-        QLabel* cemuhookLabel = new QLabel(
-            QString("Servidor de Movimento (CemuhookUDP): 127.0.0.1:%1")
-            .arg(26760)
-        );
-        cemuhookLabel->setAlignment(Qt::AlignCenter);
-        cemuhookLabel->setStyleSheet("color: #AAA; font-size: 10px;");
-
-        // Adiciona componentes ao layout principal dos sensores
         sensorMainLayout->addWidget(dataRowWidget);
-        sensorMainLayout->addWidget(cemuhookLabel);
-
         pageLayout->addWidget(m_sensorWidgetWrappers[i]);
-
-        // Garante que os sensores estejam sempre visíveis
         m_sensorWidgetWrappers[i]->setVisible(true);
 
-        // Adiciona aba do jogador
         m_playerTabs->addTab(playerPage, QString("❌ Jogador %1").arg(i + 1));
 
-        // Esconde abas 5-8 inicialmente
         if (i >= 4) {
             m_playerTabs->setTabVisible(i, false);
         }
@@ -190,30 +211,31 @@ QWidget* MainWindow::createTestTab()
     return mainTabContainer;
 }
 
-// Atualiza interface com dados recebidos do gamepad
+// =============================================
+// ATUALIZAÇÃO DE ESTADO DOS CONTROLES
+// =============================================
+
 void MainWindow::onGamepadStateUpdate(int playerIndex, const GamepadPacket& packet)
 {
     if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return;
 
-    // Atualiza display visual do controle
     m_gamepadDisplays[playerIndex]->updateState(packet);
 
-    // O Giroscópio está correto (dividido por 100.0)
     m_gyroLabels[playerIndex]->setText(QString("Gyro Celular: (%1, %2, %3)")
         .arg(packet.gyroX / 100.0, 0, 'f', 2)
         .arg(packet.gyroY / 100.0, 0, 'f', 2)
         .arg(packet.gyroZ / 100.0, 0, 'f', 2));
 
-    // --- CORREÇÃO AQUI ---
-    // Mude a divisão do Acelerômetro para a escala correta (g's)
     m_accelLabels[playerIndex]->setText(QString("Accel Celular: (%1, %2, %3)")
-        .arg(packet.accelX / 4096.0, 0, 'f', 2) // ANTES: 100.0
-        .arg(packet.accelY / 4096.0, 0, 'f', 2) // ANTES: 100.0
-        .arg(packet.accelZ / 4096.0, 0, 'f', 2)); // ANTES: 100.0
-    // --- FIM DA CORREÇÃO ---
+        .arg(packet.accelX / 4096.0, 0, 'f', 2)
+        .arg(packet.accelY / 4096.0, 0, 'f', 2)
+        .arg(packet.accelZ / 4096.0, 0, 'f', 2));
 }
 
-// Gerencia conexão de novos jogadores
+// =============================================
+// GERENCIAMENTO DE CONEXÕES DE JOGADORES
+// =============================================
+
 void MainWindow::onPlayerConnected(int playerIndex, const QString& type)
 {
     if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return;
@@ -221,7 +243,6 @@ void MainWindow::onPlayerConnected(int playerIndex, const QString& type)
     m_playerConnectionTypes[playerIndex] = type;
     m_playerTabs->setTabText(playerIndex, QString("✅ Jogador %1 (%2)").arg(playerIndex + 1).arg(type));
 
-    // Mostra abas extras se mais de 4 jogadores conectarem
     if (playerIndex >= 4) {
         m_playerTabs->setTabVisible(playerIndex, true);
 
@@ -235,28 +256,22 @@ void MainWindow::onPlayerConnected(int playerIndex, const QString& type)
     updateConnectionStatus();
 }
 
-// Gerencia desconexão de jogadores
 void MainWindow::onPlayerDisconnected(int playerIndex)
 {
     if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return;
 
-    // Reseta estado de conexão do jogador
     m_playerConnectionTypes[playerIndex] = "Nenhum";
     m_playerTabs->setTabText(playerIndex, QString("❌ Jogador %1").arg(playerIndex + 1));
 
-    // Reseta interface do jogador
     m_sensorWidgetWrappers[playerIndex]->setVisible(true);
     m_gamepadDisplays[playerIndex]->resetState();
 
-    // Reseta labels dos sensores
     m_gyroLabels[playerIndex]->setText("Gyro Celular: (0.00, 0.00, 0.00)");
     m_accelLabels[playerIndex]->setText("Accel Celular: (0.00, 0.00, 0.00)");
 
-    // Gerencia visibilidade das abas extras
     if (playerIndex >= 4) {
         m_playerTabs->setTabVisible(playerIndex, false);
 
-        // Verifica se ainda há jogadores extras conectados
         bool extraPlayersActive = false;
         for (int i = 4; i < MAX_PLAYERS; ++i) {
             if (m_playerConnectionTypes[i] != "Nenhum") {
@@ -273,7 +288,10 @@ void MainWindow::onPlayerDisconnected(int playerIndex)
     updateConnectionStatus();
 }
 
-// Processa clique no botão de desconectar jogador
+// =============================================
+// CONTROLES DE JOGADOR E STATUS
+// =============================================
+
 void MainWindow::onDisconnectPlayerClicked(int playerIndex)
 {
     if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return;
@@ -284,30 +302,49 @@ void MainWindow::onDisconnectPlayerClicked(int playerIndex)
     }
 }
 
-// Atualiza os status de conexão na interface
 void MainWindow::updateConnectionStatus()
 {
     int networkCount = 0;
     int btCount = 0;
 
-    // Conta jogadores por tipo de conexão
     for (int i = 0; i < MAX_PLAYERS; ++i) {
         if (m_playerConnectionTypes[i] == "Wi-Fi" || m_playerConnectionTypes[i] == "Ancoragem USB") networkCount++;
         else if (m_playerConnectionTypes[i] == "Bluetooth" || m_playerConnectionTypes[i] == "Bluetooth LE") btCount++;
     }
 
-    // Atualiza labels de status
     m_networkStatusLabel->setText(networkCount > 0 ? QString("Status: %1 jogador(es) conectado(s).").arg(networkCount) : "Status: Aguardando Conexões...");
     m_btStatusLabel->setText(btCount > 0 ? QString("Status: %1 jogador(es) conectado(s).").arg(btCount) : "Status: Aguardando Conexões...");
 }
 
-// Exibe mensagens de log na barra de status
+// =============================================
+// SISTEMA DE LOG E STATUS DSU
+// =============================================
+
 void MainWindow::onLogMessage(const QString& message)
 {
     statusBar()->showMessage(message, 5000);
 }
 
-// Gerencia evento de fechamento da aplicação
+void MainWindow::onDsuClientConnected(const QString& address, quint16 port)
+{
+    if (m_cemuhookStatusLabel) {
+        m_cemuhookStatusLabel->setText(QString("Status: Conectado ao cliente %1:%2").arg(address).arg(port));
+        m_cemuhookStatusLabel->setStyleSheet("color: #4CAF50;");
+    }
+}
+
+void MainWindow::onDsuClientDisconnected()
+{
+    if (m_cemuhookStatusLabel) {
+        m_cemuhookStatusLabel->setText("Status: Inativo. (Aguardando na porta 26760)");
+        m_cemuhookStatusLabel->setStyleSheet("color: #FF9800;");
+    }
+}
+
+// =============================================
+// EVENTOS DA APLICAÇÃO
+// =============================================
+
 void MainWindow::closeEvent(QCloseEvent* event)
 {
     qDebug() << "Fechando a aplicacao...";

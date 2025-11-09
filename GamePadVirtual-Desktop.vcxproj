@@ -195,6 +195,7 @@
     <QtMoc Include="src\communication\ble_server.h" />
     <QtMoc Include="src\gamepaddisplaywidget.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="src\controller_types.h" />
     <ClInclude Include="src\protocol\gamepad_packet.h" />
     <QtMoc Include="src\mainwindow.h" />
     <QtMoc Include="src\communication\wifi_server.h" />
