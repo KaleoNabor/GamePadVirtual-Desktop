@@ -6,6 +6,8 @@
 #include <QtBluetooth/QLowEnergyService>
 #include <QtBluetooth/QLowEnergyCharacteristic>
 #include <QtBluetooth/QBluetoothAddress>
+#include <QMutex> // CORREÇÃO: Adicionado para thread-safety
+#include <QHash>
 #include <QTimer>
 
 // Classe principal do servidor BLE (Bluetooth Low Energy) para gerenciar conexões de jogadores
@@ -29,7 +31,6 @@ public slots:
     void startServer();
     void stopServer();
 
-    // --- MODIFICAÇÃO ADICIONADA (REQ 2 FIX) ---
     // Força a desconexão de um jogador específico via BLE
     void forceDisconnectPlayer(int playerIndex);
 
@@ -55,6 +56,8 @@ private:
 
     // Configuração do serviço BLE e características
     void setupService();
+    // Busca de slot vazio para novo jogador
+    int findEmptySlot() const;
 
     // --- SEÇÃO: MEMBROS PRIVADOS ---
 
@@ -65,12 +68,14 @@ private:
     // Característica de vibração (para feedback háptico)
     QLowEnergyCharacteristic m_vibrationCharacteristic;
 
+    // Estruturas protegidas por mutex
     // Mapeamento de endereços de clientes para índices de jogador
     QHash<QBluetoothAddress, int> m_clientPlayerMap;
     // Array de slots de jogador ocupados (8 jogadores máximo)
     bool m_playerSlots[8];
-    // Busca de slot vazio para novo jogador
-    int findEmptySlot() const;
+
+    // CORREÇÃO: Mutex para proteção de acesso concorrente
+    mutable QMutex m_mutex;
 };
 
 #endif

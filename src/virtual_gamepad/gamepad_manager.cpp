@@ -12,10 +12,7 @@
 #include <QVector>
 #include <QNetworkInterface>
 
-// =============================================
-// FUNÇÕES AUXILIARES - CEMUHOOK
-// =============================================
-
+// Funções auxiliares para cálculos CRC e conversão
 static quint32 crc32(const unsigned char* s, size_t n) {
     quint32 crc = 0xFFFFFFFF;
     int k;
@@ -36,10 +33,7 @@ static QString bytesToHex(const QByteArray& bytes) {
     return hexString.trimmed();
 }
 
-// =============================================
-// CALLBACKS DE VIBRAÇÃO - VIGEM
-// =============================================
-
+// Callbacks de vibração para controles ViGEm
 void CALLBACK GamepadManager::x360NotificationCallback(
     VigemClient Client, VigemTarget Target, UCHAR LargeMotor,
     UCHAR SmallMotor, UCHAR LedNumber, LPVOID UserData)
@@ -72,10 +66,7 @@ void CALLBACK GamepadManager::ds4NotificationCallback(
     }
 }
 
-// =============================================
-// CONSTRUTOR E DESTRUTOR
-// =============================================
-
+// Inicialização e configuração do gerenciador
 GamepadManager::GamepadManager(QObject* parent)
     : QObject(parent), m_client(nullptr),
     m_cemuhookClientSubscribed(false), m_cemuhookClientPort(0)
@@ -99,18 +90,17 @@ GamepadManager::GamepadManager(QObject* parent)
     m_cemuhookPort = 26760;
 
     if (m_cemuhookSocket->bind(QHostAddress::AnyIPv4, m_cemuhookPort, QUdpSocket::ShareAddress)) {
-        qDebug() << "✅ Socket CemuhookUDP vinculado na porta" << m_cemuhookPort << "(Modo IPv4)";
+        qDebug() << "Socket CemuhookUDP vinculado na porta" << m_cemuhookPort;
         QList<QHostAddress> ipAddressesList = QNetworkInterface::allAddresses();
         for (const QHostAddress& address : ipAddressesList) {
             if (address.protocol() == QAbstractSocket::IPv4Protocol && address != QHostAddress::LocalHost) {
-                qDebug() << "📡 Endereço de rede DSU disponível:" << address.toString();
+                qDebug() << "Endereço de rede DSU disponível:" << address.toString();
             }
         }
         connect(m_cemuhookSocket, &QUdpSocket::readyRead, this, &GamepadManager::readPendingCemuhookDatagrams);
     }
     else {
-        qCritical() << "❌ Falha ao vincular socket CemuhookUDP na porta" << m_cemuhookPort;
-        qCritical() << "💡 Verifique se a porta não está sendo usada por outro programa";
+        qCritical() << "Falha ao vincular socket CemuhookUDP na porta" << m_cemuhookPort;
     }
 }
 
@@ -119,25 +109,22 @@ GamepadManager::~GamepadManager()
     shutdown();
 }
 
-// =============================================
-// INICIALIZAÇÃO E FINALIZAÇÃO DO SISTEMA
-// =============================================
-
+// Gerenciamento da conexão com ViGEm
 bool GamepadManager::initialize()
 {
     m_client = vigem_alloc();
     if (m_client == nullptr) {
-        qCritical() << "❌ Falha ao alocar cliente ViGEm";
+        qCritical() << "Falha ao alocar cliente ViGEm";
         return false;
     }
     const VIGEM_ERROR retval = vigem_connect(m_client);
     if (!VIGEM_SUCCESS(retval)) {
-        qCritical() << "❌ Falha ao conectar com ViGEm:" << retval;
+        qCritical() << "Falha ao conectar com ViGEm:" << retval;
         vigem_free(m_client);
         m_client = nullptr;
         return false;
     }
-    qDebug() << "✅ ViGEm inicializado com sucesso";
+    qDebug() << "ViGEm inicializado com sucesso";
     return true;
 }
 
@@ -157,10 +144,7 @@ void GamepadManager::shutdown()
     }
 }
 
-// =============================================
-// GERENCIAMENTO DE PLAYERS E CONTROLES
-// =============================================
-
+// Controle de jogadores e tipos de controle
 void GamepadManager::onControllerTypeChanged(int playerIndex, int typeIndex)
 {
     if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return;
@@ -203,10 +187,10 @@ void GamepadManager::createGamepad(int playerIndex)
             vigem_target_x360_register_notification(m_client, m_targets[playerIndex],
                 &GamepadManager::x360NotificationCallback, this);
             m_connected[playerIndex] = true;
-            qDebug() << "🎮 Gamepad virtual Xbox 360 criado para jogador" << playerIndex + 1;
+            qDebug() << "Gamepad virtual Xbox 360 criado para jogador" << playerIndex + 1;
         }
         else {
-            qCritical() << "❌ Falha ao adicionar gamepad Xbox 360";
+            qCritical() << "Falha ao adicionar gamepad Xbox 360";
             vigem_target_free(m_targets[playerIndex]);
             m_targets[playerIndex] = nullptr;
         }
@@ -219,10 +203,10 @@ void GamepadManager::createGamepad(int playerIndex)
             vigem_target_ds4_register_notification(m_client, m_targets[playerIndex],
                 &GamepadManager::ds4NotificationCallback, this);
             m_connected[playerIndex] = true;
-            qDebug() << "🎮 Gamepad virtual DualShock 4 criado para jogador" << playerIndex + 1;
+            qDebug() << "Gamepad virtual DualShock 4 criado para jogador" << playerIndex + 1;
         }
         else {
-            qCritical() << "❌ Falha ao adicionar gamepad DualShock 4";
+            qCritical() << "Falha ao adicionar gamepad DualShock 4";
             vigem_target_free(m_targets[playerIndex]);
             m_targets[playerIndex] = nullptr;
         }
@@ -258,7 +242,7 @@ void GamepadManager::cleanupGamepad(int playerIndex)
         vigem_target_free(m_targets[playerIndex]);
         m_targets[playerIndex] = nullptr;
         m_connected[playerIndex] = false;
-        qDebug() << "🎮 Gamepad virtual removido para jogador" << playerIndex + 1;
+        qDebug() << "Gamepad virtual removido para jogador" << playerIndex + 1;
     }
 }
 
@@ -269,15 +253,14 @@ void GamepadManager::playerDisconnected(int playerIndex)
     emit playerDisconnectedSignal(playerIndex);
 }
 
-// =============================================
-// PROCESSAMENTO PRINCIPAL - VIGEM E DSU
-// =============================================
-
+// Processamento principal de pacotes para ViGEm e DSU
 void GamepadManager::processLatestPackets()
 {
+    // Atualização dos controles virtuais ViGEm
     for (int i = 0; i < MAX_PLAYERS; ++i) {
         if (m_dirtyFlags[i].loadAcquire() == 1) {
 
+            // CORREÇÃO: Verificação robusta de nullptr
             if (!m_connected[i] || !m_targets[i]) {
                 m_dirtyFlags[i].storeRelease(0);
                 continue;
@@ -294,12 +277,16 @@ void GamepadManager::processLatestPackets()
                 report.bLeftTrigger = packet.leftTrigger;
                 report.bRightTrigger = packet.rightTrigger;
 
-                report.sThumbLX = static_cast<SHORT>(packet.leftStickX == -128 ? -32768 : packet.leftStickX * 257);
-                report.sThumbLY = static_cast<SHORT>(packet.leftStickY == -128 ? 32767 : -packet.leftStickY * 257);
-                report.sThumbRX = static_cast<SHORT>(packet.rightStickX == -128 ? -32768 : packet.rightStickX * 257);
-                report.sThumbRY = static_cast<SHORT>(packet.rightStickY == -128 ? 32767 : -packet.rightStickY * 257);
+                // CORREÇÃO: Fazer o cast para SHORT ANTES da multiplicação
+                report.sThumbLX = static_cast<SHORT>(packet.leftStickX == -128 ? -32768 : static_cast<SHORT>(packet.leftStickX) * 257);
+                report.sThumbLY = static_cast<SHORT>(packet.leftStickY == -128 ? 32767 : -static_cast<SHORT>(packet.leftStickY) * 257);
+                report.sThumbRX = static_cast<SHORT>(packet.rightStickX == -128 ? -32768 : static_cast<SHORT>(packet.rightStickX) * 257);
+                report.sThumbRY = static_cast<SHORT>(packet.rightStickY == -128 ? 32767 : -static_cast<SHORT>(packet.rightStickY) * 257);
 
-                vigem_target_x360_update(m_client, m_targets[i], report);
+                // CORREÇÃO: Verificação adicional de segurança
+                if (m_targets[i] && m_client) {
+                    vigem_target_x360_update(m_client, m_targets[i], report);
+                }
             }
             else if (type == ControllerType::DualShock4)
             {
@@ -352,9 +339,12 @@ void GamepadManager::processLatestPackets()
                 report.Report.wAccelY = static_cast<SHORT>((packet.accelY / APP_ACCEL_SCALE) * ACCEL_SCALE);
                 report.Report.wAccelZ = static_cast<SHORT>((packet.accelZ / APP_ACCEL_SCALE) * ACCEL_SCALE);
 
-                VIGEM_ERROR ds4Result = vigem_target_ds4_update_ex(m_client, m_targets[i], report);
-                if (!VIGEM_SUCCESS(ds4Result)) {
-                    qDebug() << "❌ Erro ao atualizar DS4:" << ds4Result;
+                // CORREÇÃO: Verificação adicional de segurança
+                if (m_targets[i] && m_client) {
+                    VIGEM_ERROR ds4Result = vigem_target_ds4_update_ex(m_client, m_targets[i], report);
+                    if (!VIGEM_SUCCESS(ds4Result)) {
+                        qDebug() << "Erro ao atualizar DS4:" << ds4Result;
+                    }
                 }
             }
 
@@ -363,8 +353,9 @@ void GamepadManager::processLatestPackets()
         }
     }
 
+    // Atualização do servidor Cemuhook DSU
     if (m_cemuhookClientSubscribed && m_cemuhookClientTimer.elapsed() > 5000) {
-        qDebug() << "⏰ Cemuhook: Cliente DSU timed out. Parando stream.";
+        qDebug() << "Cliente DSU timed out. Parando stream.";
         m_cemuhookClientSubscribed = false;
         emit dsuClientDisconnected();
     }
@@ -449,16 +440,13 @@ void GamepadManager::processLatestPackets()
 
             qint64 bytesSent = m_cemuhookSocket->writeDatagram(dsuPacket, m_cemuhookClientAddress, m_cemuhookClientPort);
             if (bytesSent == -1) {
-                qDebug() << "❌ Erro ao enviar pacote DSU:" << m_cemuhookSocket->errorString();
+                qDebug() << "Erro ao enviar pacote DSU:" << m_cemuhookSocket->errorString();
             }
         }
     }
 }
 
-// =============================================
-// SERVIDOR CEMUHOOK - RECEPÇÃO DE PACOTES
-// =============================================
-
+// Processamento de datagramas do protocolo Cemuhook
 void GamepadManager::readPendingCemuhookDatagrams()
 {
     while (m_cemuhookSocket->hasPendingDatagrams()) {
@@ -490,7 +478,7 @@ void GamepadManager::readPendingCemuhookDatagrams()
 
         if (requestType == 0x100000)
         {
-            qDebug() << "🔧 Cliente DSU solicitou VERSÃO";
+            qDebug() << "Cliente DSU solicitou VERSÃO";
             QByteArray response = responseHeader;
             response.resize(20);
             *reinterpret_cast<quint16*>(response.data() + 6) = 4;
@@ -501,7 +489,7 @@ void GamepadManager::readPendingCemuhookDatagrams()
         }
         else if (requestType == 0x100001)
         {
-            qDebug() << "🔧 Cliente DSU solicitou INFORMAÇÕES";
+            qDebug() << "Cliente DSU solicitou INFORMAÇÕES";
             QVector<int> requestedSlots;
             if (bytesRead >= 25) {
                 for (int i = 0; (24 + i) < bytesRead; i++) {
@@ -536,8 +524,8 @@ void GamepadManager::readPendingCemuhookDatagrams()
         else if (requestType == 0x100002)
         {
             if (!m_cemuhookClientSubscribed) {
-                qDebug() << "🎮 CLIENTE DSU INSCRITO (via DADOS):" << senderAddress.toString() << ":" << senderPort;
-                qDebug() << "   📡 Iniciando streaming de dados DSU...";
+                qDebug() << "CLIENTE DSU INSCRITO:" << senderAddress.toString() << ":" << senderPort;
+                qDebug() << "Iniciando streaming de dados DSU...";
                 emit dsuClientConnected(senderAddress.toString(), senderPort);
             }
             m_cemuhookClientAddress = senderAddress;
@@ -546,15 +534,12 @@ void GamepadManager::readPendingCemuhookDatagrams()
             for (int i = 0; i < DSU_MAX_CONTROLLERS; ++i) m_dsuPacketCounter[i] = 0;
         }
         else {
-            qDebug() << "⚠️  Tipo de requisição DSU desconhecido:" << QString::number(requestType, 16);
+            qDebug() << "Tipo de requisição DSU desconhecido:" << QString::number(requestType, 16);
         }
     }
 }
 
-// =============================================
-// SISTEMA DE VIBRAÇÃO E UTILITÁRIOS
-// =============================================
-
+// Sistema de vibração e utilitários
 void GamepadManager::handleX360Vibration(int playerIndex, UCHAR largeMotor, UCHAR smallMotor)
 {
     if (largeMotor > 0 || smallMotor > 0) {
@@ -588,18 +573,18 @@ void GamepadManager::testVibration(int playerIndex)
 void GamepadManager::printServerStatus()
 {
     qDebug() << "=== STATUS DO SERVIDOR ===";
-    qDebug() << "📡 Socket DSU vinculado:" << (m_cemuhookSocket->state() == QUdpSocket::BoundState) << "Porta:" << m_cemuhookPort;
-    qDebug() << "🎮 Cliente DSU inscrito:" << m_cemuhookClientSubscribed;
+    qDebug() << "Socket DSU vinculado:" << (m_cemuhookSocket->state() == QUdpSocket::BoundState) << "Porta:" << m_cemuhookPort;
+    qDebug() << "Cliente DSU inscrito:" << m_cemuhookClientSubscribed;
 
     if (m_cemuhookClientSubscribed) {
-        qDebug() << "   Endereço do cliente:" << m_cemuhookClientAddress.toString();
-        qDebug() << "   Porta do cliente:" << m_cemuhookClientPort;
-        qDebug() << "   Tempo desde último pacote:" << m_cemuhookClientTimer.elapsed() << "ms";
+        qDebug() << "Endereço do cliente:" << m_cemuhookClientAddress.toString();
+        qDebug() << "Porta do cliente:" << m_cemuhookClientPort;
+        qDebug() << "Tempo desde último pacote:" << m_cemuhookClientTimer.elapsed() << "ms";
     }
 
-    qDebug() << "🎯 Controles ViGEm conectados:";
+    qDebug() << "Controles ViGEm conectados:";
     for (int i = 0; i < MAX_PLAYERS; ++i) {
-        qDebug() << "   Slot" << i << ":" << (m_connected[i] ? "✅ Conectado" : "❌ Desconectado")
+        qDebug() << "Slot" << i << ":" << (m_connected[i] ? "Conectado" : "Desconectado")
             << "Tipo:" << (m_controllerTypes[i] == ControllerType::Xbox360 ? "Xbox 360" : "DualShock 4");
     }
     qDebug() << "===============================";

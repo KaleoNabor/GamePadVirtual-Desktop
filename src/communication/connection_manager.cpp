@@ -1,149 +1,87 @@
 ﻿#include "connection_manager.h"
+#include "network_server.h"
+#include "bluetooth_server.h"
+#include "ble_server.h"
 #include <QDebug>
-#include <QtBluetooth/QLowEnergyController>
-#include "../protocol/gamepad_packet.h"
 
-// --- CONSTRUTOR ---
-// Inicializa todos os servidores de conexão e configura as threads
 ConnectionManager::ConnectionManager(GamepadManager* gamepadManager, QObject* parent)
-    : QObject(parent), m_gamepadManager(gamepadManager), m_isBleSupported(false)
+    : QObject(parent), m_gamepadManager(gamepadManager)
 {
-    // --- SEÇÃO: DETECÇÃO DE HARDWARE BLE ---
-    // Detecção de suporte a BLE Peripheral
-    QLowEnergyController* testController = QLowEnergyController::createPeripheral();
-    if (testController) {
-        m_isBleSupported = true;
-        delete testController;
-        qInfo() << "Detectado: Suporte a Bluetooth Low Energy (BLE) em modo Periferico.";
-        emit logMessage("Modo Bluetooth: LE (Recomendado)");
-    }
-    else {
-        m_isBleSupported = false;
-        qWarning() << "Aviso: Hardware nao suporta Bluetooth Low Energy (BLE) em modo Periferico. Usando Bluetooth Classico como alternativa.";
-        emit logMessage("Modo Bluetooth: Classico (Compatibilidade)");
-    }
+    // Inicialização dos servidores
+    m_networkServer = new NetworkServer(this);
+    m_bluetoothServer = new BluetoothServer(this);
+    m_bleServer = new BleServer(this);
 
-    // --- SEÇÃO: CONFIGURAÇÃO DO SERVIDOR DE DESCOBERTA WI-FI ---
-    // Configuração do servidor de descoberta Wi-Fi
-    m_discoveryServer = new WifiServer();
-    m_discoveryServer->moveToThread(&m_discoveryThread);
-    connect(&m_discoveryThread, &QThread::started, m_discoveryServer, [=]() { m_discoveryServer->startListening(27016); });
+    // Conexões do servidor de rede
+    connect(m_networkServer, &NetworkServer::playerConnected, this, &ConnectionManager::playerConnected);
+    connect(m_networkServer, &NetworkServer::playerDisconnected, this, &ConnectionManager::playerDisconnected);
+    connect(m_networkServer, &NetworkServer::packetReceived, m_gamepadManager, &GamepadManager::onPacketReceived);
+    connect(m_networkServer, &NetworkServer::logMessage, this, &ConnectionManager::logMessage);
 
-    // --- SEÇÃO: CONFIGURAÇÃO DO SERVIDOR UDP ---
-    // Configuração do servidor UDP para dados
-    m_udpServer = new UdpServer();
-    m_udpServer->moveToThread(&m_udpDataThread);
-    connect(&m_udpDataThread, &QThread::started, m_udpServer, [=]() { m_udpServer->startServer(27015); });
-    connect(m_udpServer, &UdpServer::packetReceived, m_gamepadManager, &GamepadManager::onPacketReceived);
-    connect(m_udpServer, &UdpServer::playerConnected, m_gamepadManager, &GamepadManager::playerConnected);
-    connect(m_udpServer, &UdpServer::playerDisconnected, m_gamepadManager, &GamepadManager::playerDisconnected);
-    connect(m_udpServer, &UdpServer::logMessage, this, &ConnectionManager::logMessage);
-
-    // --- SEÇÃO: CONFIGURAÇÃO DO SERVIDOR BLUETOOTH CLÁSSICO ---
-    // Configuração do servidor Bluetooth clássico
-    m_bluetoothServer = new BluetoothServer();
-    m_bluetoothServer->moveToThread(&m_bluetoothThread);
-    connect(&m_bluetoothThread, &QThread::started, m_bluetoothServer, &BluetoothServer::startServer);
+    // Conexões do servidor Bluetooth clássico
+    connect(m_bluetoothServer, &BluetoothServer::playerConnected, this, &ConnectionManager::playerConnected);
+    connect(m_bluetoothServer, &BluetoothServer::playerDisconnected, this, &ConnectionManager::playerDisconnected);
     connect(m_bluetoothServer, &BluetoothServer::packetReceived, m_gamepadManager, &GamepadManager::onPacketReceived);
-    connect(m_bluetoothServer, &BluetoothServer::playerConnected, m_gamepadManager, &GamepadManager::playerConnected);
-    connect(m_bluetoothServer, &BluetoothServer::playerDisconnected, m_gamepadManager, &GamepadManager::playerDisconnected);
     connect(m_bluetoothServer, &BluetoothServer::logMessage, this, &ConnectionManager::logMessage);
 
-    // --- SEÇÃO: CONFIGURAÇÃO DO SERVIDOR BLE ---
-    // Configuração do servidor BLE
-    m_bleServer = new BleServer();
-    m_bleServer->moveToThread(&m_bleThread);
-    connect(&m_bleThread, &QThread::started, m_bleServer, &BleServer::startServer);
-    connect(m_bleServer, &BleServer::packetReceived, this, [this](int playerIndex, const QByteArray& packetData) {
-        if (packetData.size() >= static_cast<int>(sizeof(GamepadPacket))) {
-            const GamepadPacket* packet = reinterpret_cast<const GamepadPacket*>(packetData.constData());
-            m_gamepadManager->onPacketReceived(playerIndex, *packet);
-        }
-        });
-    connect(m_bleServer, &BleServer::playerConnected, m_gamepadManager, &GamepadManager::playerConnected);
-    connect(m_bleServer, &BleServer::playerDisconnected, m_gamepadManager, &GamepadManager::playerDisconnected);
+    // Conexões do servidor BLE
+    connect(m_bleServer, &BleServer::playerConnected, this, &ConnectionManager::playerConnected);
+    connect(m_bleServer, &BleServer::playerDisconnected, this, &ConnectionManager::playerDisconnected);
     connect(m_bleServer, &BleServer::logMessage, this, &ConnectionManager::logMessage);
+    connect(m_bleServer, &BleServer::packetReceived, this, &ConnectionManager::onBlePacketReceived);
 
-    // --- SEÇÃO: CONFIGURAÇÃO DO SISTEMA DE VIBRAÇÃO ---
-    // Conexão do sinal de vibração com lógica condicional
-    connect(m_gamepadManager, &GamepadManager::vibrationCommandReady, this, [this](int playerIndex, const QByteArray& command) {
-        // Tentativa de envio via UDP primeiro
-        if (m_udpServer->sendToPlayer(playerIndex, command)) return;
-
-        // Decisão entre BLE ou Bluetooth clássico
-        if (m_isBleSupported) {
-            m_bleServer->sendVibration(playerIndex, command);
-        }
-        else {
-            m_bluetoothServer->sendToPlayer(playerIndex, command);
-        }
-        });
+    // Sistema de vibração
+    connect(m_gamepadManager, &GamepadManager::vibrationCommandReady, this, &ConnectionManager::onVibrationCommandReady);
 }
 
-// --- DESTRUTOR ---
-// Garante a parada adequada de todos os serviços
 ConnectionManager::~ConnectionManager()
 {
     stopServices();
 }
 
-// --- INICIAR SERVIÇOS ---
-// Inicia todas as threads dos servidores de conexão
 void ConnectionManager::startServices()
 {
-    qDebug() << "Iniciando servicos de conexao...";
-    // Início dos serviços obrigatórios
-    if (!m_discoveryThread.isRunning()) m_discoveryThread.start();
-    if (!m_udpDataThread.isRunning()) m_udpDataThread.start();
-
-    // Início do serviço Bluetooth baseado na detecção
-    if (m_isBleSupported) {
-        if (!m_bleThread.isRunning()) m_bleThread.start();
-    }
-    else {
-        if (!m_bluetoothThread.isRunning()) m_bluetoothThread.start();
-    }
+    m_networkServer->startServer();
+    m_bluetoothServer->startServer();
+    m_bleServer->startServer();
+    emit logMessage("Todos os servidores foram iniciados.");
 }
 
-// --- PARAR SERVIÇOS ---
-// Para todas as threads e serviços de conexão
 void ConnectionManager::stopServices()
 {
-    qDebug() << "Parando servicos de conexao...";
-    // Parada dos serviços de descoberta e UDP
-    if (m_discoveryThread.isRunning()) { m_discoveryThread.quit(); m_discoveryThread.wait(1000); }
-    if (m_udpDataThread.isRunning()) { QMetaObject::invokeMethod(m_udpServer, "stopServer", Qt::BlockingQueuedConnection); m_udpDataThread.quit(); m_udpDataThread.wait(1000); }
+    m_networkServer->stopServer();
+    m_bluetoothServer->stopServer();
+    m_bleServer->stopServer();
+    emit logMessage("Todos os servidores foram parados.");
+}
 
-    // Parada do serviço Bluetooth ativo
-    if (m_bleThread.isRunning()) {
-        QMetaObject::invokeMethod(m_bleServer, "stopServer", Qt::BlockingQueuedConnection);
-        m_bleThread.quit();
-        m_bleThread.wait(1000);
+void ConnectionManager::forceDisconnectPlayer(int playerIndex, const QString& type)
+{
+    if (type == "Wi-Fi" || type == "Ancoragem USB") {
+        m_networkServer->forceDisconnectPlayer(playerIndex);
     }
-    if (m_bluetoothThread.isRunning()) {
-        QMetaObject::invokeMethod(m_bluetoothServer, "stopServer", Qt::BlockingQueuedConnection);
-        m_bluetoothThread.quit();
-        m_bluetoothThread.wait(1000);
+    else if (type == "Bluetooth") {
+        m_bluetoothServer->forceDisconnectPlayer(playerIndex);
+    }
+    else if (type == "Bluetooth LE") {
+        m_bleServer->forceDisconnectPlayer(playerIndex);
     }
 }
 
-// --- NOVA FUNÇÃO ADICIONADA (REQ 2 FIX) ---
-// Força a desconexão de um jogador específico por tipo de conexão
-void ConnectionManager::forceDisconnectPlayer(int playerIndex, const QString& type)
+void ConnectionManager::onVibrationCommandReady(int playerIndex, const QByteArray& command)
 {
-    if (type == "Wi-Fi (UDP)") {
-        // Invoca a função 'forceDisconnectPlayer' na thread do m_udpServer
-        QMetaObject::invokeMethod(m_udpServer, "forceDisconnectPlayer",
-            Q_ARG(int, playerIndex));
+    m_networkServer->sendVibration(playerIndex, command);
+    m_bluetoothServer->sendToPlayer(playerIndex, command);
+    m_bleServer->sendVibration(playerIndex, command);
+}
+
+void ConnectionManager::onBlePacketReceived(int playerIndex, const QByteArray& packet)
+{
+    if (packet.size() == sizeof(GamepadPacket)) {
+        const GamepadPacket* gamepadPacket = reinterpret_cast<const GamepadPacket*>(packet.constData());
+        m_gamepadManager->onPacketReceived(playerIndex, *gamepadPacket);
     }
-    else if (type == "Bluetooth") {
-        // Invoca a função 'forceDisconnectPlayer' na thread do m_bluetoothServer
-        QMetaObject::invokeMethod(m_bluetoothServer, "forceDisconnectPlayer",
-            Q_ARG(int, playerIndex));
-    }
-    else if (type == "Bluetooth LE") {
-        // Invoca a função 'forceDisconnectPlayer' na thread do m_bleServer
-        QMetaObject::invokeMethod(m_bleServer, "forceDisconnectPlayer",
-            Q_ARG(int, playerIndex));
+    else {
+        qWarning() << "Recebido pacote BLE com tamanho incorreto:" << packet.size();
     }
 }

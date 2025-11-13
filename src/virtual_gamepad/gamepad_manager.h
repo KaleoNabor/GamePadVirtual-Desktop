@@ -20,8 +20,6 @@
 using VigemClient = PVIGEM_CLIENT;
 using VigemTarget = PVIGEM_TARGET;
 
-#define MAX_PLAYERS 8
-#define DSU_MAX_CONTROLLERS 4
 
 class GamepadManager : public QObject
 {

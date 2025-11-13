@@ -5,10 +5,9 @@
 #include <QBluetoothServer>
 #include <QBluetoothSocket>
 #include <QList>
+#include "../controller_types.h"
 #include "../protocol/gamepad_packet.h"
 
-// Define o número máximo de jogadores conectados simultaneamente
-#define MAX_PLAYERS 8
 
 // Classe principal do servidor Bluetooth para gerenciar conexões de jogadores
 class BluetoothServer : public QObject

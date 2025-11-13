@@ -180,6 +180,7 @@
     <ClCompile Include="src\communication\ble_server.cpp" />
     <ClCompile Include="src\communication\bluetooth_server.cpp" />
     <ClCompile Include="src\communication\connection_manager.cpp" />
+    <ClCompile Include="src\communication\network_server.cpp" />
     <ClCompile Include="src\communication\udp_server.cpp" />
     <ClCompile Include="src\gamepaddisplaywidget.cpp" />
     <ClCompile Include="src\virtual_gamepad\gamepad_manager.cpp" />
@@ -195,6 +196,7 @@
     <QtMoc Include="src\communication\ble_server.h" />
     <QtMoc Include="src\gamepaddisplaywidget.h" />
     <ClInclude Include="resource.h" />
+    <QtMoc Include="src\communication\network_server.h" />
     <ClInclude Include="src\controller_types.h" />
     <ClInclude Include="src\protocol\gamepad_packet.h" />
     <QtMoc Include="src\mainwindow.h" />

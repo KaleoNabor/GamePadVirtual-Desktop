@@ -54,6 +54,9 @@
     <ClCompile Include="src\gamepaddisplaywidget.cpp">
       <Filter>Generated Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\communication\network_server.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="src\communication\connection_manager.h">
@@ -81,6 +84,9 @@
       <Filter>Generated Files</Filter>
     </QtMoc>
     <QtMoc Include="src\gamepaddisplaywidget.h">
+      <Filter>Generated Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\communication\network_server.h">
       <Filter>Generated Files</Filter>
     </QtMoc>
   </ItemGroup>

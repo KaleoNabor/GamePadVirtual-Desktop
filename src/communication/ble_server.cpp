@@ -1,12 +1,12 @@
 ﻿#include "ble_server.h"
-
 #include <QtBluetooth/QLowEnergyAdvertisingData>
 #include <QtBluetooth/QLowEnergyAdvertisingParameters> 
 #include <QtBluetooth/QLowEnergyCharacteristicData>
 #include <QtBluetooth/QLowEnergyDescriptorData>        
 #include <QtBluetooth/QLowEnergyServiceData>
-#include <QtBluetooth/QBluetoothUuid>                   
+#include <QtBluetooth/QBluetoothUuid>
 #include <QDebug>
+#include <QMutexLocker> // CORREÇÃO: Adicionado para uso do mutex
 
 // UUIDs para serviço e características BLE
 static const QBluetoothUuid SERVICE_UUID(QStringLiteral("00001812-0000-1000-8000-00805f9b34fb"));
@@ -75,6 +75,12 @@ void BleServer::stopServer()
         delete m_gamepadService;
         m_gamepadService = nullptr;
     }
+
+    // CORREÇÃO: Limpeza segura com mutex
+    QMutexLocker locker(&m_mutex);
+    m_clientPlayerMap.clear();
+    for (int i = 0; i < 8; ++i) m_playerSlots[i] = false;
+
     qDebug() << "Servidor BLE parado.";
 }
 
@@ -142,17 +148,25 @@ void BleServer::onCharacteristicWritten(const QLowEnergyCharacteristic& characte
     // Processamento de escrita na característica de entrada
     if (characteristic.uuid() == INPUT_CHAR_UUID) {
         QBluetoothAddress clientAddress = m_bleController->remoteAddress();
-        if (!m_clientPlayerMap.contains(clientAddress)) {
-            // --- SEÇÃO: MAPEAMENTO DE NOVO CLIENTE ---
-            // Mapeamento de novo cliente para slot de jogador
+
+        // CORREÇÃO: Proteção contra race condition com Mutex
+        m_mutex.lock();
+        bool isKnown = m_clientPlayerMap.contains(clientAddress);
+        m_mutex.unlock();
+
+        if (!isKnown) {
+            QMutexLocker locker(&m_mutex); // Bloqueia escopo inteiro da criação
             int playerIndex = findEmptySlot();
+
             if (playerIndex != -1) {
-                // Conexão bem-sucedida para slot disponível
                 m_playerSlots[playerIndex] = true;
                 m_clientPlayerMap[clientAddress] = playerIndex;
+                // Liberar mutex antes de emitir sinal para evitar deadlock se o slot chamar algo de volta
+                locker.unlock();
                 emit playerConnected(playerIndex, "Bluetooth LE");
             }
             else {
+                locker.unlock();
                 // --- SEÇÃO: REJEIÇÃO DE CONEXÃO ---
                 // Rejeição de conexão quando servidor está cheio
                 qDebug() << "Servidor cheio. Rejeitando cliente BLE:" << clientAddress.toString();
@@ -166,8 +180,14 @@ void BleServer::onCharacteristicWritten(const QLowEnergyCharacteristic& characte
         }
 
         // --- SEÇÃO: EMISSÃO DE PACOTE RECEBIDO ---
-        int playerIndex = m_clientPlayerMap[clientAddress];
-        emit packetReceived(playerIndex, newValue);
+        // CORREÇÃO: Leitura segura com mutex
+        m_mutex.lock();
+        int playerIndex = m_clientPlayerMap.value(clientAddress, -1);
+        m_mutex.unlock();
+
+        if (playerIndex != -1) {
+            emit packetReceived(playerIndex, newValue);
+        }
     }
 }
 
@@ -184,10 +204,14 @@ void BleServer::onClientDisconnected()
 {
     qDebug() << "Cliente BLE desconectado.";
     QBluetoothAddress clientAddress = m_bleController->remoteAddress();
+
+    // CORREÇÃO: Limpeza correta dos slots quando desconectar
+    QMutexLocker locker(&m_mutex);
     if (m_clientPlayerMap.contains(clientAddress)) {
         int slot = m_clientPlayerMap.value(clientAddress);
         m_playerSlots[slot] = false;
         m_clientPlayerMap.remove(clientAddress);
+        locker.unlock(); // Libera antes de emitir
         emit playerDisconnected(slot);
     }
 }
@@ -202,9 +226,11 @@ bool BleServer::sendVibration(int playerIndex, const QByteArray& command)
     }
 
     // --- SEÇÃO: BUSCA DO CLIENTE ---
-    // Busca do endereço do cliente pelo índice do jogador
+    // CORREÇÃO: Busca segura com mutex
+    QMutexLocker locker(&m_mutex);
     QBluetoothAddress targetAddress;
     bool found = false;
+
     for (auto it = m_clientPlayerMap.constBegin(); it != m_clientPlayerMap.constEnd(); ++it) {
         if (it.value() == playerIndex) {
             targetAddress = it.key();
@@ -214,8 +240,9 @@ bool BleServer::sendVibration(int playerIndex, const QByteArray& command)
     }
 
     // --- SEÇÃO: ENVIO DE NOTIFICAÇÃO ---
-    // Envio da notificação de vibração para o cliente correto
+    // CORREÇÃO: Verificar se o cliente conectado é o alvo
     if (found && m_bleController && m_bleController->remoteAddress() == targetAddress) {
+        locker.unlock(); // Destrava para escrever
         m_gamepadService->writeCharacteristic(m_vibrationCharacteristic, command, QLowEnergyService::WriteWithoutResponse);
         return true;
     }
@@ -232,14 +259,15 @@ int BleServer::findEmptySlot() const {
     return -1; // Nenhum slot disponível
 }
 
-// --- NOVA FUNÇÃO ADICIONADA (REQ 2 FIX) ---
+// --- FORÇAR DESCONEXÃO DE JOGADOR ---
 // Força a desconexão de um jogador específico via BLE
 void BleServer::forceDisconnectPlayer(int playerIndex)
 {
     QBluetoothAddress targetAddress;
     bool found = false;
 
-    // Encontra o endereço do cliente pelo índice do jogador
+    // CORREÇÃO: Busca segura com mutex
+    QMutexLocker locker(&m_mutex);
     for (auto it = m_clientPlayerMap.constBegin(); it != m_clientPlayerMap.constEnd(); ++it) {
         if (it.value() == playerIndex) {
             targetAddress = it.key();
@@ -247,6 +275,7 @@ void BleServer::forceDisconnectPlayer(int playerIndex)
             break;
         }
     }
+    locker.unlock();
 
     if (found) {
         // Se o cliente for o que está ativamente conectado ao controlador,
@@ -256,8 +285,11 @@ void BleServer::forceDisconnectPlayer(int playerIndex)
         }
         // Se não for o cliente ativo (caso de borda), apenas limpa o slot
         else {
+            // CORREÇÃO: Limpeza segura com mutex
+            QMutexLocker locker(&m_mutex);
             m_playerSlots[playerIndex] = false;
             m_clientPlayerMap.remove(targetAddress);
+            locker.unlock();
             emit playerDisconnected(playerIndex);
         }
     }

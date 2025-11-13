@@ -6,9 +6,9 @@
 #include <QHostAddress>
 #include <QHash>
 #include <QTimer>
+#include "../controller_types.h"
 #include "../protocol/gamepad_packet.h"
 
-#define MAX_PLAYERS 8
 
 // Classe principal do servidor UDP para gerenciar conexões de jogadores
 class UdpServer : public QObject
@@ -30,7 +30,6 @@ public slots:
     // Para o servidor e limpa recursos
     void stopServer();
 
-    // --- MODIFICAÇÃO ADICIONADA (REQ 2 FIX) ---
     // Força a desconexão de um jogador específico
     void forceDisconnectPlayer(int playerIndex);
 
@@ -80,8 +79,10 @@ private:
 
     // Socket UDP para comunicação com os clientes
     QUdpSocket* m_udpSocket;
-    // Timer para processamento em tempo real
-    QTimer* m_processingTimer;
+
+    // CORREÇÃO: m_processingTimer removido - não é necessário
+    // pois usamos o sinal readyRead do QUdpSocket
+
     // Mapeamento cliente -> índice do jogador
     QHash<ClientId, int> m_clientPlayerMap;
     // Mapeamento índice do jogador -> cliente

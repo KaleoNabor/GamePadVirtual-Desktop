@@ -5,13 +5,13 @@
 #include <QLabel>
 #include <QTabWidget>
 #include <QComboBox>
+#include "controller_types.h"
 #include "communication/connection_manager.h"
 #include "protocol/gamepad_packet.h"
 #include "gamepaddisplaywidget.h"
 
 class GamepadManager;
 
-#define MAX_PLAYERS 8
 
 class MainWindow : public QMainWindow
 {
@@ -49,7 +49,6 @@ private:
 
     // Sistema de status e feedback
     QLabel* m_networkStatusLabel;
-    QLabel* m_btStatusLabel;
     QLabel* m_cemuhookStatusLabel;
 
     // Sistema de exibição dos jogadores

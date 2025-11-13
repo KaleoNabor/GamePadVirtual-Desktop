@@ -13,10 +13,8 @@ UdpServer::UdpServer(QObject* parent) : QObject(parent), m_udpSocket(nullptr)
         m_playerSlots[i] = false;
     }
 
-    // Configura timer para processamento em tempo real
-    m_processingTimer = new QTimer(this);
-    m_processingTimer->setInterval(2); // Intervalo de 2ms para processamento rápido
-    connect(m_processingTimer, &QTimer::timeout, this, &UdpServer::processPendingDatagrams);
+    // CORREÇÃO: m_processingTimer removido - não é mais necessário
+    // O processamento será feito via sinal readyRead do QUdpSocket
 }
 
 // --- DESTRUTOR ---
@@ -37,7 +35,9 @@ void UdpServer::startServer(quint16 port)
     // Tenta fazer o bind na porta especificada
     if (m_udpSocket->bind(QHostAddress::Any, port)) {
         qDebug() << "Servidor de Dados (UDP) iniciado na porta" << port << ".";
-        m_processingTimer->start(); // Inicia o processamento contínuo
+
+        // CORREÇÃO: Uso de sinal em vez de Timer para latência mínima
+        connect(m_udpSocket, &QUdpSocket::readyRead, this, &UdpServer::processPendingDatagrams);
     }
     else {
         qDebug() << "Erro: Nao foi possivel iniciar o servidor UDP na porta" << port;
@@ -49,8 +49,7 @@ void UdpServer::startServer(quint16 port)
 // Para o servidor e libera todos os recursos
 void UdpServer::stopServer()
 {
-    // Para o timer de processamento
-    m_processingTimer->stop();
+    // CORREÇÃO: Timer removido - não é mais necessário parar
 
     // Fecha e libera o socket UDP
     if (m_udpSocket) {
@@ -195,7 +194,7 @@ void UdpServer::handlePlayerDisconnect(int playerIndex)
     emit playerDisconnected(playerIndex);
 }
 
-// --- NOVA FUNÇÃO ADICIONADA (REQ 2 FIX) ---
+// --- FORÇAR DESCONEXÃO DE JOGADOR ---
 // Força a desconexão de um jogador específico
 void UdpServer::forceDisconnectPlayer(int playerIndex)
 {

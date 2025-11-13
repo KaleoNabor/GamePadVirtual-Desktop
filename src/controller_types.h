@@ -7,4 +7,8 @@ enum class ControllerType {
     DualShock4 = 1
 };
 
+// CORREÇÃO: Definição centralizada de constantes
+static constexpr int MAX_PLAYERS = 8;
+static constexpr int DSU_MAX_CONTROLLERS = 4;
+
 #endif // CONTROLLER_TYPES_H

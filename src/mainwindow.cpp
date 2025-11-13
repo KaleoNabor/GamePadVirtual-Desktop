@@ -1,5 +1,7 @@
 #include "mainwindow.h"
 #include "gamepaddisplaywidget.h"
+#include "communication/connection_manager.h"
+#include "virtual_gamepad/gamepad_manager.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -13,31 +15,34 @@
 #include <QMessageBox>
 #include <QComboBox>
 
-// =============================================
-// CONSTRUTOR E INICIALIZAÇÃO
-// =============================================
-
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
-    // Inicializa estado dos jogadores
     for (int i = 0; i < MAX_PLAYERS; ++i) {
         m_playerConnectionTypes[i] = "Nenhum";
     }
 
-    // Cria componentes principais
     m_gamepadManager = new GamepadManager(this);
     m_connectionManager = new ConnectionManager(m_gamepadManager, this);
 
-    // Conecta sinais entre componentes
+    // Conexões de estado do gamepad
     connect(m_gamepadManager, &GamepadManager::gamepadStateUpdated, this, &MainWindow::onGamepadStateUpdate);
-    connect(m_gamepadManager, &GamepadManager::playerConnectedSignal, this, &MainWindow::onPlayerConnected);
-    connect(m_gamepadManager, &GamepadManager::playerDisconnectedSignal, this, &MainWindow::onPlayerDisconnected);
     connect(m_connectionManager, &ConnectionManager::logMessage, this, &MainWindow::onLogMessage);
     connect(m_gamepadManager, &GamepadManager::dsuClientConnected, this, &MainWindow::onDsuClientConnected);
     connect(m_gamepadManager, &GamepadManager::dsuClientDisconnected, this, &MainWindow::onDsuClientDisconnected);
 
-    // Configura interface e inicia serviços
+    // Conexões de jogadores - ConnectionManager para GamepadManager
+    connect(m_connectionManager, &ConnectionManager::playerConnected,
+        m_gamepadManager, &GamepadManager::playerConnected);
+    connect(m_connectionManager, &ConnectionManager::playerDisconnected,
+        m_gamepadManager, &GamepadManager::playerDisconnected);
+
+    // Conexões de jogadores - ConnectionManager para Interface
+    connect(m_connectionManager, &ConnectionManager::playerConnected,
+        this, &MainWindow::onPlayerConnected);
+    connect(m_connectionManager, &ConnectionManager::playerDisconnected,
+        this, &MainWindow::onPlayerDisconnected);
+
     setupUI();
 
     if (m_gamepadManager->initialize()) {
@@ -46,10 +51,6 @@ MainWindow::MainWindow(QWidget* parent)
 }
 
 MainWindow::~MainWindow() {}
-
-// =============================================
-// CONFIGURAÇÃO DA INTERFACE PRINCIPAL
-// =============================================
 
 void MainWindow::setupUI()
 {
@@ -66,10 +67,6 @@ void MainWindow::setupUI()
     setCentralWidget(tabWidget);
 }
 
-// =============================================
-// ABA DE CONEXÕES - CONFIGURAÇÃO DE REDE
-// =============================================
-
 QWidget* MainWindow::createConnectionsTab()
 {
     QWidget* tab = new QWidget();
@@ -77,7 +74,6 @@ QWidget* MainWindow::createConnectionsTab()
     mainLayout->setContentsMargins(20, 20, 20, 20);
     mainLayout->setSpacing(15);
 
-    // Seção de conexão de rede (Wi-Fi/USB)
     QGroupBox* networkGroup = new QGroupBox("Conexão de Rede (Wi-Fi / Ancoragem USB)");
     QVBoxLayout* networkLayout = new QVBoxLayout(networkGroup);
 
@@ -93,14 +89,13 @@ QWidget* MainWindow::createConnectionsTab()
     networkLayout->addWidget(usbInstruction);
     networkLayout->addWidget(m_networkStatusLabel);
 
-    // Seção de conexão Bluetooth
     QGroupBox* btGroup = new QGroupBox("Bluetooth");
     QVBoxLayout* btLayout = new QVBoxLayout(btGroup);
+    QLabel* btDevLabel = new QLabel("<i>Ainda em desenvolvimento...</i>");
+    btDevLabel->setAlignment(Qt::AlignCenter);
+    btLayout->addWidget(btDevLabel);
+    mainLayout->addWidget(btGroup);
 
-    m_btStatusLabel = new QLabel("Status: Aguardando Conexões...");
-    btLayout->addWidget(m_btStatusLabel);
-
-    // Seção do servidor Cemuhook DSU
     QGroupBox* dsuGroup = new QGroupBox("Servidor de Movimento (Cemuhook DSU)");
     QVBoxLayout* dsuLayout = new QVBoxLayout(dsuGroup);
 
@@ -121,10 +116,6 @@ QWidget* MainWindow::createConnectionsTab()
     return tab;
 }
 
-// =============================================
-// ABA DE TESTE - CONTROLES E SENSORES
-// =============================================
-
 QWidget* MainWindow::createTestTab()
 {
     QWidget* mainTabContainer = new QWidget();
@@ -133,18 +124,15 @@ QWidget* MainWindow::createTestTab()
     m_playerTabs = new QTabWidget();
     mainLayout->addWidget(m_playerTabs);
 
-    // Cria interface para cada jogador
     for (int i = 0; i < MAX_PLAYERS; ++i)
     {
         QWidget* playerPage = new QWidget();
         QVBoxLayout* pageLayout = new QVBoxLayout(playerPage);
 
-        // Barra de ferramentas do jogador
         QHBoxLayout* buttonLayout = new QHBoxLayout();
         QPushButton* disconnectButton = new QPushButton("Desconectar Jogador");
         QPushButton* vibrateButton = new QPushButton("Testar Vibração");
 
-        // Seletor de tipo de controle
         m_controllerTypeSelectors[i] = new QComboBox();
         m_controllerTypeSelectors[i]->addItem("Xbox 360", 0);
         m_controllerTypeSelectors[i]->addItem("DualShock 4", 1);
@@ -158,7 +146,6 @@ QWidget* MainWindow::createTestTab()
 
         pageLayout->addLayout(buttonLayout);
 
-        // Conexões dos controles
         connect(disconnectButton, &QPushButton::clicked, this, [this, i]() {
             onDisconnectPlayerClicked(i);
             });
@@ -173,12 +160,10 @@ QWidget* MainWindow::createTestTab()
                 m_gamepadDisplays[i]->setControllerType(index);
             });
 
-        // Display visual do controle
         m_gamepadDisplays[i] = new GamepadDisplayWidget();
         m_gamepadDisplays[i]->setControllerType(1);
         pageLayout->addWidget(m_gamepadDisplays[i], 1);
 
-        // Área de dados dos sensores
         m_sensorWidgetWrappers[i] = new QWidget();
         QVBoxLayout* sensorMainLayout = new QVBoxLayout(m_sensorWidgetWrappers[i]);
         sensorMainLayout->setContentsMargins(0, 5, 0, 5);
@@ -211,10 +196,6 @@ QWidget* MainWindow::createTestTab()
     return mainTabContainer;
 }
 
-// =============================================
-// ATUALIZAÇÃO DE ESTADO DOS CONTROLES
-// =============================================
-
 void MainWindow::onGamepadStateUpdate(int playerIndex, const GamepadPacket& packet)
 {
     if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return;
@@ -231,10 +212,6 @@ void MainWindow::onGamepadStateUpdate(int playerIndex, const GamepadPacket& pack
         .arg(packet.accelY / 4096.0, 0, 'f', 2)
         .arg(packet.accelZ / 4096.0, 0, 'f', 2));
 }
-
-// =============================================
-// GERENCIAMENTO DE CONEXÕES DE JOGADORES
-// =============================================
 
 void MainWindow::onPlayerConnected(int playerIndex, const QString& type)
 {
@@ -288,10 +265,6 @@ void MainWindow::onPlayerDisconnected(int playerIndex)
     updateConnectionStatus();
 }
 
-// =============================================
-// CONTROLES DE JOGADOR E STATUS
-// =============================================
-
 void MainWindow::onDisconnectPlayerClicked(int playerIndex)
 {
     if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return;
@@ -305,20 +278,13 @@ void MainWindow::onDisconnectPlayerClicked(int playerIndex)
 void MainWindow::updateConnectionStatus()
 {
     int networkCount = 0;
-    int btCount = 0;
 
     for (int i = 0; i < MAX_PLAYERS; ++i) {
         if (m_playerConnectionTypes[i] == "Wi-Fi" || m_playerConnectionTypes[i] == "Ancoragem USB") networkCount++;
-        else if (m_playerConnectionTypes[i] == "Bluetooth" || m_playerConnectionTypes[i] == "Bluetooth LE") btCount++;
     }
 
     m_networkStatusLabel->setText(networkCount > 0 ? QString("Status: %1 jogador(es) conectado(s).").arg(networkCount) : "Status: Aguardando Conexões...");
-    m_btStatusLabel->setText(btCount > 0 ? QString("Status: %1 jogador(es) conectado(s).").arg(btCount) : "Status: Aguardando Conexões...");
 }
-
-// =============================================
-// SISTEMA DE LOG E STATUS DSU
-// =============================================
 
 void MainWindow::onLogMessage(const QString& message)
 {
@@ -341,13 +307,24 @@ void MainWindow::onDsuClientDisconnected()
     }
 }
 
-// =============================================
-// EVENTOS DA APLICAÇÃO
-// =============================================
-
 void MainWindow::closeEvent(QCloseEvent* event)
 {
     qDebug() << "Fechando a aplicacao...";
+
+    // Desconecta sinais do GamepadManager
+    disconnect(m_gamepadManager, &GamepadManager::gamepadStateUpdated,
+        this, &MainWindow::onGamepadStateUpdate);
+
+    // Desconecta sinais do ConnectionManager
+    disconnect(m_connectionManager, &ConnectionManager::playerConnected,
+        this, &MainWindow::onPlayerConnected);
+    disconnect(m_connectionManager, &ConnectionManager::playerDisconnected,
+        this, &MainWindow::onPlayerDisconnected);
+    disconnect(m_connectionManager, &ConnectionManager::logMessage,
+        this, &MainWindow::onLogMessage);
+
+    // Para os serviços com segurança
     m_connectionManager->stopServices();
+
     event->accept();
 }
