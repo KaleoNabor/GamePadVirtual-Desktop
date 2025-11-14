@@ -1,3 +1,5 @@
+// gamepad_manager.h - CORREÇÕES DE SINTAXE
+
 #ifndef GAMEPAD_MANAGER_H
 #define GAMEPAD_MANAGER_H
 
@@ -10,16 +12,13 @@
 #include "../protocol/gamepad_packet.h"
 #include "../controller_types.h"
 
-#define VIGEM_ENABLE_BUS_VERSION_1_17_X_FEATURES
-
-#define _WINSOCKAPI_
+// CORREÇÃO: Use includes padrão do Windows
 #include <Windows.h>
-#undef _WINSOCKAPI_
-#include "ViGEm/Client.h"
+#include <ViGEm/Client.h>
 
+// CORREÇÃO: Use os tipos ViGEm diretamente
 using VigemClient = PVIGEM_CLIENT;
 using VigemTarget = PVIGEM_TARGET;
-
 
 class GamepadManager : public QObject
 {
@@ -58,6 +57,7 @@ private:
     void handleX360Vibration(int playerIndex, UCHAR largeMotor, UCHAR smallMotor);
     void handleDS4Vibration(int playerIndex, UCHAR largeMotor, UCHAR smallMotor);
 
+    // CORREÇÃO: Use tipos ViGEm corretos
     VigemClient m_client;
     VigemTarget m_targets[MAX_PLAYERS];
     bool m_connected[MAX_PLAYERS];
@@ -75,13 +75,14 @@ private:
     quint32 m_dsuPacketCounter[MAX_PLAYERS];
     uint m_dsuLastKeepAlive[MAX_PLAYERS];
 
+    // CORREÇÃO: Callbacks com tipos corretos
     static void CALLBACK x360NotificationCallback(
-        VigemClient Client, VigemTarget Target, UCHAR LargeMotor,
-        UCHAR SmallMotor, UCHAR LedNumber, LPVOID UserData);
+        PVIGEM_CLIENT Client, PVIGEM_TARGET Target, UCHAR LargeMotor,
+        UCHAR SmallMotor, UCHAR LedNumber, PVOID UserData);
 
     static void CALLBACK ds4NotificationCallback(
-        VigemClient Client, VigemTarget Target, UCHAR LargeMotor,
-        UCHAR SmallMotor, DS4_LIGHTBAR_COLOR LightbarColor, LPVOID UserData);
+        PVIGEM_CLIENT Client, PVIGEM_TARGET Target, UCHAR LargeMotor,
+        UCHAR SmallMotor, DS4_LIGHTBAR_COLOR LightbarColor, PVOID UserData);
 };
 
 #endif

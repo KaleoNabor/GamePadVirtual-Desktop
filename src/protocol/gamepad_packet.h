@@ -46,10 +46,10 @@ enum GamepadButton {
     R3 = 1 << 7,
     L1 = 1 << 8,
     R1 = 1 << 9,
-    A = 1 << 12,
-    B = 1 << 13,
-    X = 1 << 14,
-    Y = 1 << 15
+    A = 1 << 12, //Cross
+	B = 1 << 13, //Circle
+	X = 1 << 14, //Square
+	Y = 1 << 15 //Triangle
 };
 
 #endif
