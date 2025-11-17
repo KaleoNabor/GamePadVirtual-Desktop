@@ -168,7 +168,7 @@ void GamepadManager::onPacketReceived(int playerIndex, const GamepadPacket& pack
     if (playerIndex < 0 || playerIndex >= MAX_PLAYERS) return;
 
     // DEBUG: Verificar se os botões estão chegando corretamente
-    qDebug() << "GamepadManager - Player" << playerIndex
+    /*qDebug() << "GamepadManager - Player" << playerIndex
         << "Buttons:" << QString::number(packet.buttons, 16)
         << "A:" << (packet.buttons & A)
         << "B:" << (packet.buttons & B)
@@ -176,7 +176,7 @@ void GamepadManager::onPacketReceived(int playerIndex, const GamepadPacket& pack
         << "Y:" << (packet.buttons & Y)
         << "L1:" << (packet.buttons & L1)
         << "R1:" << (packet.buttons & R1)
-        << "DPAD_UP:" << (packet.buttons & DPAD_UP);
+        << "DPAD_UP:" << (packet.buttons & DPAD_UP);*/
 
     m_latestPackets[playerIndex] = packet;
     m_dirtyFlags[playerIndex].storeRelease(1);
@@ -376,7 +376,7 @@ void GamepadManager::processLatestPackets()
 
             // --- 2. ATUALIZAÇÃO DO CEMUHOOK DSU ---
             // Só envia se o cliente DSU estiver ouvindo E o slot for 0-3 E o tipo for Xbox
-            if (m_cemuhookClientSubscribed && i < DSU_MAX_CONTROLLERS && type == ControllerType::Xbox360)
+            if (m_cemuhookClientSubscribed && i < DSU_MAX_CONTROLLERS)
             {
                 QByteArray dsuPacket;
                 dsuPacket.resize(100);
@@ -409,12 +409,12 @@ void GamepadManager::processLatestPackets()
 
                 // --- Byte 37 (Botões de Ação + Ombros) - CORREÇÃO APLICADA ---
                 quint8 buttons2 = 0;
-                if (packet.buttons & Y)            buttons2 |= (1 << 7);
+                /*if (packet.buttons & Y)            buttons2 |= (1 << 7);
                 if (packet.buttons & B)            buttons2 |= (1 << 6);
                 if (packet.buttons & A)            buttons2 |= (1 << 5);
                 if (packet.buttons & X)            buttons2 |= (1 << 4);
                 if (packet.buttons & R1)           buttons2 |= (1 << 3);
-                if (packet.buttons & L1)           buttons2 |= (1 << 2);
+                if (packet.buttons & L1)           buttons2 |= (1 << 2);*/
                 if (packet.rightTrigger > 20)      buttons2 |= (1 << 1);
                 if (packet.leftTrigger > 20)       buttons2 |= (1 << 0);
                 dsuPacket[37] = static_cast<char>(buttons2);
@@ -425,9 +425,9 @@ void GamepadManager::processLatestPackets()
 
                 // --- Bytes 40-43 (Analógicos) ---
                 dsuPacket[40] = static_cast<quint8>(std::clamp(packet.leftStickX + 128, 0, 255));
-                dsuPacket[41] = static_cast<quint8>(std::clamp(-packet.leftStickY + 128, 0, 255));
+                dsuPacket[41] = static_cast<quint8>(std::clamp(packet.leftStickY + 128, 0, 255));
                 dsuPacket[42] = static_cast<quint8>(std::clamp(packet.rightStickX + 128, 0, 255));
-                dsuPacket[43] = static_cast<quint8>(std::clamp(-packet.rightStickY + 128, 0, 255));
+                dsuPacket[43] = static_cast<quint8>(std::clamp(packet.rightStickY + 128, 0, 255));
 
                 // --- Bytes 44-47 (D-PAD ANALÓGICO) ---
                 // D-Pad analógico - CORREÇÃO APLICADA
@@ -461,6 +461,8 @@ void GamepadManager::processLatestPackets()
                 *reinterpret_cast<float*>(dsuPacket.data() + 96) = static_cast<float>(packet.gyroZ / safeGyroDivisor);
 
                 // --- CRC ---
+                *reinterpret_cast<quint32*>(dsuPacket.data() + 8) = 0;
+
                 quint32 calculated_crc = crc32(
                     reinterpret_cast<const unsigned char*>(dsuPacket.constData()),
                     dsuPacket.size()
@@ -524,6 +526,7 @@ void GamepadManager::readPendingCemuhookDatagrams()
             response.resize(20);
             *reinterpret_cast<quint16*>(response.data() + 6) = 4;
             *reinterpret_cast<quint32*>(response.data() + 16) = 1001;
+            *reinterpret_cast<quint32*>(response.data() + 8) = 0;
             quint32 crc = crc32(reinterpret_cast<const unsigned char*>(response.constData()), response.size());
             *reinterpret_cast<quint32*>(response.data() + 8) = crc;
             m_cemuhookSocket->writeDatagram(response, senderAddress, senderPort);
@@ -557,6 +560,7 @@ void GamepadManager::readPendingCemuhookDatagrams()
                     response[23] = 0xDD; response[24] = 0xEE; response[25] = (0xFF + slotIndex);
                 }
                 response[26] = isConnected ? 5 : 0;
+                *reinterpret_cast<quint32*>(response.data() + 8) = 0;
                 quint32 crc = crc32(reinterpret_cast<const unsigned char*>(response.constData()), response.size());
                 *reinterpret_cast<quint32*>(response.data() + 8) = crc;
                 m_cemuhookSocket->writeDatagram(response, senderAddress, senderPort);
