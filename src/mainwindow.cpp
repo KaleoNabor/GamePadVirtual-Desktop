@@ -74,6 +74,45 @@ QWidget* MainWindow::createConnectionsTab()
     mainLayout->setContentsMargins(20, 20, 20, 20);
     mainLayout->setSpacing(15);
 
+    // --- NOVO: GRUPO DE TRANSMISSÃO ---
+    QGroupBox* streamGroup = new QGroupBox("Transmissão de Tela (Stream)");
+    QVBoxLayout* streamLayout = new QVBoxLayout(streamGroup);
+
+    QLabel* infoLabel = new QLabel(
+        "⚠️ <b>Recurso Experimental</b><br>"
+        "Ativar a transmissão consome recursos do PC (CPU/GPU) e banda da rede Wi-Fi.<br>"
+        "Para melhor performance, use uma rede 5GHz e mantenha os drivers de vídeo atualizados."
+    );
+    infoLabel->setWordWrap(true);
+    infoLabel->setStyleSheet("color: #555;");
+
+    // O BOTÃO MESTRE
+    QPushButton* toggleStreamBtn = new QPushButton("Ativar Transmissão de Tela");
+    toggleStreamBtn->setCheckable(true);
+    toggleStreamBtn->setFixedHeight(40);
+    toggleStreamBtn->setStyleSheet(
+        "QPushButton { background-color: #4CAF50; color: white; font-weight: bold; border-radius: 4px; }"
+        "QPushButton:checked { background-color: #F44336; }"
+    );
+
+    // Conexão do Botão
+    connect(toggleStreamBtn, &QPushButton::toggled, this, [this, toggleStreamBtn](bool checked) {
+        if (checked) {
+            toggleStreamBtn->setText("Parar Transmissão");
+            m_connectionManager->setStreamingEnabled(true);
+        }
+        else {
+            toggleStreamBtn->setText("Ativar Transmissão de Tela");
+            m_connectionManager->setStreamingEnabled(false);
+        }
+        });
+
+    streamLayout->addWidget(infoLabel);
+    streamLayout->addWidget(toggleStreamBtn);
+
+    // Adiciona ao topo
+    mainLayout->addWidget(streamGroup);
+
     QGroupBox* networkGroup = new QGroupBox("Conexão de Rede (Wi-Fi / Ancoragem USB)");
     QVBoxLayout* networkLayout = new QVBoxLayout(networkGroup);
 

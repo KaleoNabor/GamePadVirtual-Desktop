@@ -55,6 +55,23 @@ void ConnectionManager::stopServices()
     emit logMessage("Todos os servidores foram parados.");
 }
 
+// A implementação deve ter o prefixo ConnectionManager::
+void ConnectionManager::setStreamingEnabled(bool enabled)
+{
+    // Verifica se m_networkServer foi inicializado antes de usar
+    if (m_networkServer) {
+        m_networkServer->setStreamingEnabled(enabled);
+    }
+}
+
+bool ConnectionManager::isStreamingEnabled() const
+{
+    if (m_networkServer) {
+        return m_networkServer->isStreamingEnabled();
+    }
+    return false;
+}
+
 void ConnectionManager::forceDisconnectPlayer(int playerIndex, const QString& type)
 {
     if (type == "Wi-Fi" || type == "Ancoragem USB") {

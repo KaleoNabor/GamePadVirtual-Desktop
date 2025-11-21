@@ -23,10 +23,21 @@ public:
     explicit ConnectionManager(GamepadManager* gamepadManager, QObject* parent = nullptr);
     ~ConnectionManager();
 
+    // --- NOVO MÉTODO ADICIONADO AQUI ---
+    // Nota: Geralmente colocamos como slot se for chamado pela UI via connect, 
+    // mas pode ser public method se chamado via lambda.
+    // Vamos declarar como SLOT para facilitar.
+    // --------------------------------------
+
 public slots:
     void startServices();
     void stopServices();
     void forceDisconnectPlayer(int playerIndex, const QString& type);
+
+    // --- ADICIONE ESTA LINHA ---
+    void setStreamingEnabled(bool enabled);
+    bool isStreamingEnabled() const;
+    // ---------------------------
 
 private slots:
     void onVibrationCommandReady(int playerIndex, const QByteArray& command);
@@ -47,4 +58,4 @@ private:
     BleServer* m_bleServer;
 };
 
-#endif
+#endif // CONNECTION_MANAGER_H

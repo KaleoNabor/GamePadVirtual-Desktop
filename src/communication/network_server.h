@@ -10,11 +10,12 @@
 #include <QHostAddress>
 #include "../controller_types.h"
 #include "../protocol/gamepad_packet.h"
+#include "../streaming/screen_streamer.h"
 
-
-#define CONTROL_PORT_TCP 42000 // TCP para conexão/desconexão
-#define DATA_PORT_UDP 42001    // UDP para pacotes de gamepad
-#define DISCOVERY_PORT 27016   // UDP para descoberta de servidores
+// Substituir macros por constexpr
+constexpr int CONTROL_PORT_TCP = 42000;  // TCP para conexão/desconexão
+constexpr int DATA_PORT_UDP = 42001;     // UDP para pacotes de gamepad
+constexpr int DISCOVERY_PORT = 27016;    // UDP para descoberta de servidores
 
 class NetworkServer : public QObject
 {
@@ -23,6 +24,11 @@ class NetworkServer : public QObject
 public:
     explicit NetworkServer(QObject* parent = nullptr);
     ~NetworkServer();
+
+    // --- NOVOS MÉTODOS ADICIONADOS AQUI ---
+    void setStreamingEnabled(bool enabled);
+    bool isStreamingEnabled() const;
+    // --------------------------------------
 
 public slots:
     void startServer();
@@ -44,6 +50,7 @@ private slots:
 
     // Canal de descoberta UDP
     void readDiscoveryDatagrams();
+
 signals:
     void packetReceived(int playerIndex, const GamepadPacket& packet);
     void playerConnected(int playerIndex, const QString& type);
@@ -52,6 +59,9 @@ signals:
 
 private:
     int findEmptySlot() const;
+
+    // Streaming de tela
+    ScreenStreamer* m_streamer;
 
     // Servidores de rede
     QTcpServer* m_tcpServer;
@@ -64,6 +74,12 @@ private:
     QHash<QHostAddress, int> m_ipPlayerMap;
     QHash<int, QHostAddress> m_playerIpMap;
     QHash<int, quint16> m_playerUdpPortMap;
+
+    // --- CORREÇÃO DO MOUSE "PRESO" ---
+    // Controle de estado do mouse para evitar spam e travamentos
+    bool m_lastLeftClick = false;
+    bool m_lastRightClick = false;
+    // ---------------------------------
 };
 
 #endif // NETWORK_SERVER_H

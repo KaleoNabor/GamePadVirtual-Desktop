@@ -71,6 +71,14 @@
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">GamePadVirtual-Desktop</TargetName>
     <IgnoreImportLibrary Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</IgnoreImportLibrary>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>C:\Program Files\gstreamer\1.0\msvc_x86_64\include\gstreamer-1.0;C:\Program Files\gstreamer\1.0\msvc_x86_64\include\glib-2.0;C:\Program Files\gstreamer\1.0\msvc_x86_64\lib\glib-2.0\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Program Files\gstreamer\1.0\msvc_x86_64\lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>C:\Program Files\gstreamer\1.0\msvc_x86_64\include\gstreamer-1.0;C:\Program Files\gstreamer\1.0\msvc_x86_64\include\glib-2.0;C:\Program Files\gstreamer\1.0\msvc_x86_64\lib\glib-2.0\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Program Files\gstreamer\1.0\msvc_x86_64\lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)ViGEmClient\include</AdditionalIncludeDirectories>
@@ -83,7 +91,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <ObjectFileName>release\</ObjectFileName>
       <Optimization>MaxSpeed</Optimization>
-      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;WIN64;QT_DEPRECATED_WARNINGS;NDEBUG;QT_NO_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>GST_USE_UNSTABLE_API</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <ProgramDataBaseFileName>
       </ProgramDataBaseFileName>
@@ -95,7 +103,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>.\ViGEmClient\lib\release\x64\ViGEmClient.lib;SetupAPI.lib</AdditionalDependencies>
+      <AdditionalDependencies>User32.lib;gstvideo-1.0.lib;gstreamer-1.0.lib;gstwebrtc-1.0.lib;gstsdp-1.0.lib;glib-2.0.lib;gobject-2.0.lib;.\ViGEmClient\lib\release\x64\ViGEmClient.lib;SetupAPI.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)ViGEmClient\lib\release\x64</AdditionalLibraryDirectories>
       <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
       <DataExecutionPrevention>true</DataExecutionPrevention>
@@ -138,7 +146,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <ObjectFileName>debug\</ObjectFileName>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_WINDOWS;_UNICODE;_ENABLE_EXTENDED_ALIGNED_STORAGE;WIN64;QT_DEPRECATED_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>GST_USE_UNSTABLE_API</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -148,7 +156,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>.\ViGEmClient\lib\release\x64\ViGEmClient.lib;SetupAPI.lib</AdditionalDependencies>
+      <AdditionalDependencies>User32.lib;gstvideo-1.0.lib;gstreamer-1.0.lib;gstwebrtc-1.0.lib;gstsdp-1.0.lib;glib-2.0.lib;gobject-2.0.lib;.\ViGEmClient\lib\release\x64\ViGEmClient.lib;SetupAPI.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)ViGEmClient\lib\release\x64</AdditionalLibraryDirectories>
       <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
       <DataExecutionPrevention>true</DataExecutionPrevention>
@@ -183,12 +191,16 @@
     <ClCompile Include="src\communication\network_server.cpp" />
     <ClCompile Include="src\communication\udp_server.cpp" />
     <ClCompile Include="src\gamepaddisplaywidget.cpp" />
+    <ClCompile Include="src\streaming\screen_streamer.cpp" />
+    <ClCompile Include="src\utils\input_emulator.cpp" />
     <ClCompile Include="src\virtual_gamepad\gamepad_manager.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\mainwindow.cpp" />
     <ClCompile Include="src\communication\wifi_server.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\utils\input_emulator.h" />
+    <QtMoc Include="src\streaming\screen_streamer.h" />
     <QtMoc Include="src\communication\connection_manager.h" />
     <QtMoc Include="src\virtual_gamepad\gamepad_manager.h" />
     <QtMoc Include="src\communication\bluetooth_server.h" />

@@ -6,6 +6,7 @@
 #include <Windows.h>
 #include <shellapi.h>
 #include <Shlobj.h>
+#include <stdlib.h>
 
 // Verifica se o driver ViGEmBus está instalado
 bool isViGEmBusInstalled()
@@ -17,13 +18,15 @@ bool isViGEmBusInstalled()
 // Executa o programa como administrador
 void runAsAdmin(int argc, char* argv[])
 {
-    SHELLEXECUTEINFO sei = { sizeof(sei) };
+    // Use SHELLEXECUTEINFOW explicitamente para aceitar strings com L"..."
+    SHELLEXECUTEINFOW sei = { sizeof(sei) };
     sei.lpVerb = L"runas";
     sei.lpFile = L"GamePadVirtual-Desktop.exe";
     sei.hwnd = NULL;
     sei.nShow = SW_NORMAL;
 
-    if (!ShellExecuteEx(&sei))
+    // Use ShellExecuteExW explicitamente
+    if (!ShellExecuteExW(&sei))
     {
         DWORD error = GetLastError();
         if (error == ERROR_CANCELLED) {
@@ -37,6 +40,7 @@ void runAsAdmin(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
+    qputenv("GST_PLUGIN_PATH", "C:\\Program Files\\gstreamer\\1.0\\msvc_x86_64\\lib\\gstreamer-1.0");
     // Verificação da instalação do driver ViGEmBus
     if (!isViGEmBusInstalled()) {
 

@@ -57,6 +57,12 @@
     <ClCompile Include="src\communication\network_server.cpp">
       <Filter>Generated Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\streaming\screen_streamer.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils\input_emulator.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="src\communication\connection_manager.h">
@@ -89,6 +95,9 @@
     <QtMoc Include="src\communication\network_server.h">
       <Filter>Generated Files</Filter>
     </QtMoc>
+    <QtMoc Include="src\streaming\screen_streamer.h">
+      <Filter>Generated Files</Filter>
+    </QtMoc>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="debug\moc_predefs.h.cbt">
@@ -103,6 +112,9 @@
       <Filter>Generated Files</Filter>
     </ClInclude>
     <ClInclude Include="src\controller_types.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils\input_emulator.h">
       <Filter>Generated Files</Filter>
     </ClInclude>
   </ItemGroup>
