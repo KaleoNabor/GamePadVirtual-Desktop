@@ -3,6 +3,8 @@
 #include <QSettings>
 #include <QMessageBox>
 #include <QProcess>
+#include <QDir>
+#include <QDebug>
 #include <Windows.h>
 #include <shellapi.h>
 #include <Shlobj.h>
@@ -40,7 +42,16 @@ void runAsAdmin(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
-    qputenv("GST_PLUGIN_PATH", "C:\\Program Files\\gstreamer\\1.0\\msvc_x86_64\\lib\\gstreamer-1.0");
+    // --- MODO PORTÁTIL ADICIONADO ---
+    QString appPath = QCoreApplication::applicationDirPath();
+    QByteArray appPathBytes = appPath.toLocal8Bit();
+
+    qputenv("GST_PLUGIN_PATH", appPathBytes);
+    qputenv("GST_PLUGIN_SYSTEM_PATH", appPathBytes);
+
+    qDebug() << "Iniciando em modo portátil. Plugins GStreamer buscados em:" << appPath;
+    // --- FIM MODO PORTÁTIL ---
+
     // Verificação da instalação do driver ViGEmBus
     if (!isViGEmBusInstalled()) {
 
@@ -48,9 +59,13 @@ int main(int argc, char* argv[])
         if (IsUserAnAdmin()) {
             QMessageBox::information(nullptr, "Instalação do Driver", "O instalador do driver ViGEmBus será iniciado agora. Por favor, siga as instruções.");
 
-            // Execução do instalador do ViGEmBus
+            // Execução do instalador do ViGEmBus - versão melhorada com fallback
             QProcess installer;
-            installer.start("ViGEmBus_1.22.0_x64_x86_arm64.exe", QStringList() << "/S");
+            installer.start("ViGEmBus_Setup_1.22.0.exe", QStringList() << "/S");
+
+            if (!installer.waitForStarted(1000)) {
+                installer.start("ViGEmBus_1.22.0_x64_x86_arm64.exe", QStringList() << "/S");
+            }
 
             if (installer.waitForFinished(-1)) {
                 QMessageBox::information(nullptr, "Instalação Concluída", "O driver foi instalado com sucesso! Por favor, execute o programa novamente.");
